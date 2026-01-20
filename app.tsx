@@ -118,7 +118,7 @@ export default function App() {
 
   const [idx, setIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [fps, setFps] = useState(2);
+  const [fps, setFps] = useState(1);
   const [blend, setBlend] = useState(0);
   const [overlay, setOverlay] = useState<
     "mag" | "deep" | "vort" | "sst" | "sss" | "ice" | "wind"
@@ -160,10 +160,6 @@ export default function App() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-
-  useEffect(() => {
-    setFps(overlay === "wind" ? 1 : 2);
-  }, [overlay]);
 
   useEffect(() => {
     setPlaying(movieOn);
