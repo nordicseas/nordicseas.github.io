@@ -9,10 +9,14 @@ import ParticleLayer from "./particle-layer";
 const MAP_STYLE =
   "https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json";
 
-// lon/lat bounds for your uv.png
+// lon/lat bounds for your uv_*.png
 const BOUNDS: [number, number, number, number] = [-30, 57.67, 23.25, 81.5];
 
-// ✅ Put your available dates here (in order)
+// Tune particle speed to match the "simple" repo's default feel.
+// That demo is tuned around ~zoom 3.8 with speedFactor ~3.
+const FLOW_REFERENCE_ZOOM = 3.8;
+const FLOW_REFERENCE_SPEED_FACTOR = 3;
+
 const DATES = [
   "2011-01-04",
   "2011-01-09",
@@ -90,9 +94,21 @@ const DATES = [
 ];
 
 function formatDateLabel(isoDate: string) {
-  // nullschool-ish: "2011 Sep 01"
   const [y, m, d] = isoDate.split("-").map(Number);
-  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   return `${y} ${monthNames[m - 1]} ${String(d).padStart(2, "0")}`;
 }
 
@@ -110,6 +126,7 @@ export default function App() {
   const [showParticles, setShowParticles] = useState(true);
   const [movieOn, setMovieOn] = useState(false);
   const [audioOn, setAudioOn] = useState(false);
+
   const idxRef = useRef(idx);
   const [viewportSize, setViewportSize] = useState({
     width: window.innerWidth,
@@ -117,7 +134,7 @@ export default function App() {
   });
 
   const frames = useMemo(() => {
-    const base = import.meta.env.BASE_URL; // handles /demo/deck-particle-layer/
+    const base = import.meta.env.BASE_URL;
     return DATES.map((d) => `${base}uv_${d}.png`);
   }, []);
   const windFrames = useMemo(() => {
@@ -197,6 +214,7 @@ export default function App() {
   const imageUrl = particleFrames[idx];
   const nextIdx = (idx + 1) % frames.length;
   const imageNextUrl = particleFrames[nextIdx];
+
   const overlayFrames = useMemo(() => {
     const base = import.meta.env.BASE_URL;
     const prefix =
@@ -211,9 +229,11 @@ export default function App() {
               : overlay;
     return DATES.map((d) => `${base}${prefix}_${d}.png`);
   }, [overlay]);
+
   const magUrl = overlayFrames[idx];
   const magNextUrl = overlayFrames[nextIdx];
   const magOpacity = 0.45;
+
   const overlayMeta = useMemo(() => {
     const gradients = {
       mag: {
@@ -234,7 +254,6 @@ export default function App() {
         scaleLabel: "Scale:",
         minLabel: "-0.4",
         maxLabel: "0.4",
-        // cmocean curl (approx)
         gradient:
           "linear-gradient(90deg, #2d004b, #5b2a86, #4a6fe3, #8fb3ff, #f7f7f7, #ffc8a3, #ea6e57, #b7002a)",
       },
@@ -242,7 +261,6 @@ export default function App() {
         scaleLabel: "Scale (°C):",
         minLabel: "0",
         maxLabel: "14",
-        // RdBu_r (approx)
         gradient:
           "linear-gradient(90deg, #053061, #2166ac, #4393c3, #92c5de, #f7f7f7, #f4a582, #d6604d, #b2182b, #67001f)",
       },
@@ -250,7 +268,6 @@ export default function App() {
         scaleLabel: "Scale (psu):",
         minLabel: "32",
         maxLabel: "35",
-        // cmocean haline (approx)
         gradient:
           "linear-gradient(90deg, #2a1867, #2f5a9e, #1a8bb6, #16b6b6, #5bd4b5, #bfe3a3, #f4d08a)",
       },
@@ -258,7 +275,6 @@ export default function App() {
         scaleLabel: "Scale:",
         minLabel: "0",
         maxLabel: "1",
-        // cmocean ice (approx)
         gradient:
           "linear-gradient(90deg, #0b1b2b, #1b3c5a, #2f6c8e, #4ea3b1, #8fd1cf, #d6f2f5, #ffffff)",
       },
@@ -266,13 +282,13 @@ export default function App() {
         scaleLabel: "Normalized wind stress N/m^2",
         minLabel: "0",
         maxLabel: "1",
-        // cmocean tempo (approx)
         gradient:
           "linear-gradient(90deg, #23145b, #3d3a91, #275fa8, #1c86a5, #1ca59a, #4ebf7a, #9ad14c, #f4d24e)",
       },
     } as const;
     return gradients[overlay];
   }, [overlay]);
+
   const initialViewState = useMemo((): MapViewState => {
     const viewport = new WebMercatorViewport({
       width: viewportSize.width,
@@ -287,6 +303,13 @@ export default function App() {
     );
     return { longitude, latitude, zoom };
   }, [viewportSize.height, viewportSize.width]);
+
+  const flowSpeedFactor = useMemo(() => {
+    return (
+      FLOW_REFERENCE_SPEED_FACTOR *
+      2 ** (initialViewState.zoom - FLOW_REFERENCE_ZOOM)
+    );
+  }, [initialViewState.zoom]);
 
   const layers = [
     new BitmapLayer({
@@ -310,12 +333,12 @@ export default function App() {
             blend,
             imageUnscale: [-128, 127],
             bounds: BOUNDS,
-            numParticles: 25000,
-            maxAge: 20,
-            speedFactor: 3,
+            numParticles: 15000,
+            maxAge: 40,
+            speedFactor: flowSpeedFactor,
             color: [255, 255, 255, 255],
-            width: 1,
-            opacity: 0.7,
+            width: 2,
+            opacity: 0.5,
           }),
         ]
       : []),
@@ -353,35 +376,12 @@ export default function App() {
 
   return (
     <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
-      <div
-        style={{
-          position: "absolute",
-          right: 12,
-          top: 12,
-          zIndex: 6,
-          padding: "6px 8px",
-          borderRadius: 8,
-          background: "rgba(0,0,0,0.6)",
-          color: "white",
-          fontFamily: "system-ui, sans-serif",
-          fontSize: 11,
-          lineHeight: 1.3,
-          maxWidth: 320,
-          pointerEvents: "none",
-        }}
-      >
-        <div>idx: {idx}</div>
-        <div>overlay: {overlay}</div>
-        <div>uv: {imageUrl}</div>
-        <div>uv next: {imageNextUrl}</div>
-        <div>mag: {magUrl}</div>
-        <div>mag next: {magNextUrl}</div>
-      </div>
       <audio
         ref={audioRef}
         src={`${import.meta.env.BASE_URL}Dmitri Shostakovich Jazz Suite Waltz No.2.mp3`}
         preload="auto"
       />
+
       <DeckGL
         ref={ref}
         layers={layers}
@@ -391,13 +391,13 @@ export default function App() {
         <Map reuseMaps mapStyle={MAP_STYLE} />
       </DeckGL>
 
-      {/* Bottom-left control + legend (nullschool-ish) */}
+      {/* Bottom-left control + legend */}
       <div
         style={{
           position: "absolute",
           left: 12,
           bottom: 12,
-          width: 440,
+          width: 480,
           padding: 10,
           borderRadius: 10,
           background: "rgba(0,0,0,0.55)",
@@ -440,6 +440,7 @@ export default function App() {
             ))}
           </div>
         </div>
+
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button
             type="button"
@@ -476,6 +477,7 @@ export default function App() {
             />
           </button>
           <div style={{ fontSize: 12, opacity: 0.9 }}>Flow</div>
+
           <button
             type="button"
             role="switch"
@@ -511,6 +513,7 @@ export default function App() {
             />
           </button>
           <div style={{ fontSize: 12, opacity: 0.9 }}>Movie</div>
+
           <button
             type="button"
             role="switch"
@@ -547,9 +550,11 @@ export default function App() {
           </button>
           <div style={{ fontSize: 12, opacity: 0.9 }}>Audio</div>
         </div>
+
         <div style={{ fontSize: 12, opacity: 0.75 }}>
           Source: MITgcm simulation
         </div>
+
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ fontSize: 12, opacity: 0.9 }}>
             Date: {formatDateLabel(currentDate)}
@@ -608,6 +613,7 @@ export default function App() {
             </div>
           </div>
         </div>
+
         <input
           type="range"
           min={0}
@@ -621,6 +627,7 @@ export default function App() {
           }}
           style={{ width: "100%" }}
         />
+
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ fontSize: 12, opacity: 0.9 }}>
             {overlayMeta.scaleLabel}
@@ -649,6 +656,7 @@ export default function App() {
             </div>
           </div>
         </div>
+
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ fontSize: 12, opacity: 0.75 }}>Feedback:</div>
           <a
@@ -662,7 +670,7 @@ export default function App() {
               color: "white",
               textDecoration: "none",
               fontSize: 12,
-              opacity: 0.9,
+              opacity: 0.8,
             }}
           >
             <svg
@@ -683,7 +691,7 @@ export default function App() {
               gap: 4,
               color: "white",
               fontSize: 12,
-              opacity: 0.9,
+              opacity: 0.8,
             }}
           >
             <svg

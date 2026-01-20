@@ -8,6 +8,7 @@ in vec3 sourcePosition;
 out vec3 targetPosition;
 
 uniform sampler2D bitmapTexture;
+uniform sampler2D bitmapTextureNext;
 
 const vec2 DROP_POSITION = vec2(0);
 
@@ -15,6 +16,8 @@ bool isNaN(float value) {
   return !(value <= 0.f || 0.f <= value);
 }
 
+// Longitude wrapping allows rendering in a repeated MapView
+// Without this it creates weird artifacts.
 float wrapLongitude(float lng) {
   float wrappedLng = mod(lng + 180.f, 360.f) - 180.f;
   return wrappedLng;
@@ -56,12 +59,9 @@ bool isPositionInViewport(vec2 position) {
   return isPositionInBounds(position, bitmap.viewportBounds);
 }
 
-// texture in lon/lat
+// Our texture is already in lng/lat, can just pull the coords without conversion.
 vec2 getUV(vec2 pos) {
-  return vec2(
-    (pos.x - bitmap.bounds[0]) / (bitmap.bounds[2] - bitmap.bounds[0]),
-    (pos.y - bitmap.bounds[3]) / (bitmap.bounds[1] - bitmap.bounds[3])
-  );
+  return vec2((pos.x - bitmap.bounds[0]) / (bitmap.bounds[2] - bitmap.bounds[0]), (pos.y - bitmap.bounds[3]) / (bitmap.bounds[1] - bitmap.bounds[3]));
 }
 
 bool rasterHasValues(vec4 values) {
@@ -82,7 +82,8 @@ vec2 rasterGetValues(vec4 colour) {
 
 vec2 updatedPosition(vec2 position, vec2 speed) {
   float distortion = cos(radians(position.y));
-  vec2 offset = vec2(speed.x, speed.y * distortion);
+  vec2 offset;
+  offset = vec2(speed.x, speed.y * distortion);
   return position + offset;
 }
 
@@ -90,16 +91,17 @@ void main() {
   float particleIndex = mod(float(gl_VertexID), bitmap.numParticles);
   float particleAge = floor(float(gl_VertexID) / bitmap.numParticles);
 
-  // Only update youngest; older ages are handled by buffer copy.
+  // Update particles
+  // Older particles are copied afterwards in buffer copy/swap.
   if(particleAge > 0.f) {
     return;
   }
 
   if(sourcePosition.xy == DROP_POSITION) {
+    // New particles? New positions! So random l0l XD!!1
     vec2 particleSeed = vec2(particleIndex * bitmap.seed / bitmap.numParticles);
     vec2 point = randPoint(particleSeed);
     vec2 position = pointToPosition(point);
-
     targetPosition.xy = position;
     targetPosition.x = wrapLongitude(targetPosition.x);
     targetPosition.z = 0.0;
@@ -107,33 +109,40 @@ void main() {
   }
 
   if(bitmap.viewportZoomChangeFactor > 1.f && mod(particleIndex, bitmap.viewportZoomChangeFactor) >= 1.f) {
+    // Drop when zooming out and start again.
     targetPosition.xy = DROP_POSITION;
     targetPosition.z = 0.0;
     return;
   }
 
   if(abs(mod(particleIndex, bitmap.maxAge + 2.f) - mod(bitmap.time, bitmap.maxAge + 2.f)) < 1.f) {
+    // Drop by bitmap.maxAge, +2 because only non-randomised pairs are rendered.
     targetPosition.xy = DROP_POSITION;
     targetPosition.z = 0.0;
     return;
   }
 
   if(!isPositionInBounds(sourcePosition.xy, bitmap.bounds)) {
+    // Stop at bounds edge (prevents "shooting" off-domain).
     targetPosition.xy = sourcePosition.xy;
-    targetPosition.z  = sourcePosition.z;
+    targetPosition.z = sourcePosition.z;
     return;
   }
 
   if(!isPositionInViewport(sourcePosition.xy)) {
+    // Drop out of viewport.
     targetPosition.xy = DROP_POSITION;
     targetPosition.z = 0.0;
     return;
   }
 
   vec2 uv = getUV(sourcePosition.xy);
-  vec4 bitmapColour = texture(bitmapTexture, uv);
+  vec4 c0 = texture(bitmapTexture, uv);
+  vec4 c1 = texture(bitmapTextureNext, uv);
+  vec4 bitmapColour = mix(c0, c1, bitmap.blend);
 
   if(!rasterHasValues(bitmapColour)) {
+    // Drop when no data in raster.
     targetPosition.xy = DROP_POSITION;
     targetPosition.z = 0.0;
     return;

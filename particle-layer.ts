@@ -10,7 +10,7 @@ import { Model, BufferTransform } from "@luma.gl/engine";
 import shader from "./particle-layer-update-transform.vs.glsl.js";
 import { ShaderModule } from "@luma.gl/shadertools";
 
-// -------------------- Shader Module --------------------
+// Shader Module
 
 export type UniformProps = {
   numParticles: number;
@@ -61,22 +61,17 @@ export const bitmapUniforms = {
   },
 } as const satisfies ShaderModule<UniformProps>;
 
-// -------------------- Particle Layer --------------------
+// Particle Layer
 
 const FPS = 30;
 const DEFAULT_COLOR: [number, number, number, number] = [255, 255, 255, 255];
-const SPEED_ZOOM_REFERENCE = 3.0;
 
 export type Bbox = [number, number, number, number];
 
 export type ParticleLayerProps<D = unknown> = LineLayerProps<D> & {
-  // current + next velocity fields (async deck.gl image props)
   image: string | Texture | null;
   imageNext?: string | Texture | null;
-
-  // 0..1, blends image -> imageNext inside the transform shader
   blend?: number;
-
   bounds: number[];
   imageUnscale: number[];
   numParticles: number;
@@ -94,7 +89,6 @@ const defaultProps: DefaultProps<ParticleLayerProps> = {
   image: { type: "image", value: null, async: true },
   imageNext: { type: "image", value: null, async: true },
   blend: { type: "number", min: 0, max: 1, value: 0 },
-
   imageUnscale: { type: "array", value: null },
 
   numParticles: { type: "number", min: 1, max: 1000000, value: 5000 },
@@ -118,25 +112,17 @@ export default class ParticleLayer<
     initialized: boolean;
     numInstances: number;
     numAgedInstances: number;
-
     sourcePositions: Buffer;
     targetPositions: Buffer;
-
     sourcePositions64Low: Float32Array;
     targetPositions64Low: Float32Array;
-
     colors: Buffer;
     widths: Float32Array;
-
     transform: BufferTransform;
-
     previousViewportZoom: number;
-    previousTime: number;
-
-    // current and next textures
+    previousFrame: number;
     texture: Texture;
     textureNext: Texture;
-
     stepRequested: boolean;
   };
 
@@ -197,7 +183,6 @@ export default class ParticleLayer<
   initializeState() {
     const color = this.props.color;
     super.initializeState();
-
     const attributeManager = this.getAttributeManager();
     attributeManager!.remove([
       "instanceSourcePositions",
@@ -205,22 +190,21 @@ export default class ParticleLayer<
       "instanceColors",
       "instanceWidths",
     ]);
-
     attributeManager!.addInstanced({
       instanceSourcePositions: {
         size: 3,
         type: "float32",
-        noAlloc: true,
+        noAlloc: !0,
       },
       instanceTargetPositions: {
         size: 3,
         type: "float32",
-        noAlloc: true,
+        noAlloc: !0,
       },
       instanceColors: {
         size: 4,
         type: "float32",
-        noAlloc: true,
+        noAlloc: !0,
         defaultValue: [color[0], color[1], color[2], color[3]],
       },
     });
@@ -228,16 +212,19 @@ export default class ParticleLayer<
     this.setState({ initialized: false } as any);
   }
 
-  updateState({ props, oldProps, changeFlags, context }: UpdateParameters<this>) {
+  updateState({
+    props,
+    oldProps,
+    changeFlags,
+    context,
+  }: UpdateParameters<this>) {
     super.updateState({
       props,
       oldProps,
       changeFlags,
       context,
     } as UpdateParameters<this>);
-
     const { numParticles, maxAge, width, image, imageNext } = props;
-
     if (!numParticles || !maxAge || !width) {
       this._deleteTransformFeedback();
       return;
@@ -246,7 +233,7 @@ export default class ParticleLayer<
     const imageIsTexture = image && typeof image !== "string";
     const imageNextIsTexture = imageNext && typeof imageNext !== "string";
 
-    // (A) init once BOTH textures are available (or fall back to current)
+    // (A) init once textures are available (or fall back to current)
     if (!this.state.initialized) {
       if (imageIsTexture) {
         this._setupTransformFeedback();
@@ -254,7 +241,7 @@ export default class ParticleLayer<
       return;
     }
 
-    // (B) rebuild buffers ONLY when structure changes
+    // (B) rebuild buffers only when structure changes
     if (
       numParticles !== oldProps.numParticles ||
       maxAge !== oldProps.maxAge ||
@@ -267,20 +254,36 @@ export default class ParticleLayer<
     // (C) update textures without resetting particles (smooth)
     // Deck.gl async image prop will switch from URL string -> Texture, and then change on new URL.
     if (imageIsTexture && image !== oldProps.image) {
-      this.setState({ texture: image as Texture });
+      (image as Texture).setSampler({ minFilter: "linear", magFilter: "linear" });
+      const updates: Partial<typeof this.state> = {
+        texture: image as Texture,
+      };
+      if (!imageNextIsTexture) {
+        updates.textureNext = image as Texture;
+      }
+      this.setState(updates as any);
     }
+
     if (imageNextIsTexture && imageNext !== oldProps.imageNext) {
-      this.setState({ textureNext: imageNext as Texture });
+      (imageNext as Texture).setSampler({
+        minFilter: "linear",
+        magFilter: "linear",
+      });
+      this.setState({ textureNext: imageNext as Texture } as any);
     }
   }
 
   finalizeState(context: LayerContext) {
     this._deleteTransformFeedback();
+
     super.finalizeState(context);
   }
 
   draw({ uniforms }: { uniforms: any }) {
-    if (!this.state.initialized) return;
+    const { initialized } = this.state;
+    if (!initialized) {
+      return;
+    }
 
     const { animate } = this.props;
     const {
@@ -292,13 +295,11 @@ export default class ParticleLayer<
       widths,
       model,
     } = this.state;
-
     model.setAttributes({
       instanceSourcePositions: sourcePositions,
       instanceTargetPositions: targetPositions,
       instanceColors: colors,
     });
-
     model.setConstantAttributes({
       instanceSourcePositions64Low: sourcePositions64Low,
       instanceTargetPositions64Low: targetPositions64Low,
@@ -307,11 +308,14 @@ export default class ParticleLayer<
 
     super.draw({ uniforms });
 
-    if (animate) this.requestStep();
+    if (animate) {
+      this.requestStep();
+    }
   }
 
   _setupTransformFeedback() {
-    if (this.state.initialized) {
+    const { initialized } = this.state;
+    if (initialized) {
       this._deleteTransformFeedback();
     }
 
@@ -319,15 +323,20 @@ export default class ParticleLayer<
     if (typeof image === "string" || image === null) {
       return;
     }
-    // if next not ready yet, reuse current (no blink)
     const texNext =
       typeof imageNext === "string" || imageNext === null
         ? (image as Texture)
         : (imageNext as Texture);
 
+    (image as Texture).setSampler({ minFilter: "linear", magFilter: "linear" });
+    texNext.setSampler({ minFilter: "linear", magFilter: "linear" });
+
+    // Buffer layout groups particles by age.
+    // So all the youngest particles, followed by the next oldest, etc.
+    // After the the transform runs (one age complete) we shift all the buffers down.
+    // The oldest has shifted and the blank area at the start becomes the youngest in the next transform.
     const numInstances = numParticles * maxAge;
     const numAgedInstances = numParticles * (maxAge - 1);
-
     const sourcePositions = this.context.device.createBuffer(
       new Float32Array(numInstances * 3)
     );
@@ -335,7 +344,6 @@ export default class ParticleLayer<
       new Float32Array(numInstances * 3)
     );
 
-    // age-fade alpha (RGB overridden by shader colormap)
     const colors = this.context.device.createBuffer(
       new Float32Array(
         new Array(numInstances)
@@ -353,6 +361,7 @@ export default class ParticleLayer<
       )
     );
 
+    // Constant attributes for BufferTransform
     const sourcePositions64Low = new Float32Array([0, 0, 0]);
     const targetPositions64Low = new Float32Array([0, 0, 0]);
     const widths = new Float32Array([width]);
@@ -390,20 +399,22 @@ export default class ParticleLayer<
       texture: image as Texture,
       textureNext: texNext,
       previousViewportZoom: 0,
-      previousTime: 0,
+      previousFrame: -1,
       stepRequested: false,
     });
   }
 
   _runTransformFeedback() {
-    if (!this.state.initialized) return;
+    const { initialized } = this.state;
+    if (!initialized) {
+      return;
+    }
 
     const { viewport, timeline } = this.context;
     const { imageUnscale, bounds, numParticles, speedFactor, maxAge, blend } =
       this.props;
-
     const {
-      previousTime,
+      previousFrame,
       previousViewportZoom,
       transform,
       sourcePositions,
@@ -413,21 +424,24 @@ export default class ParticleLayer<
       textureNext,
     } = this.state;
 
-    const time = timeline.getTime();
-    if (time === previousTime) return;
+    const frame = Math.floor(timeline.getTime() / (1000 / FPS));
+    if (frame === previousFrame) return;
 
+    // Viewport
     const viewportBounds = getViewportBounds(viewport);
     const viewportZoomChangeFactor =
       2 ** ((previousViewportZoom - viewport.zoom) * 4);
 
-    const currentSpeedFactor =
-      speedFactor / 2 ** (SPEED_ZOOM_REFERENCE + 7);
+    // Speed factor for zoom level
+    const currentSpeedFactor = speedFactor / 2 ** (viewport.zoom + 7);
 
+    // Prep and run the transform.
+    // The uninitialised "youngest" will be created.
+    // Everything else will move as appropriate.
     const moduleUniforms: UniformProps = {
       bitmapTexture: texture,
       bitmapTextureNext: textureNext ?? texture,
       blend: typeof blend === "number" ? blend : 0,
-
       viewportBounds: viewportBounds || [0, 0, 0, 0],
       viewportZoomChangeFactor: viewportZoomChangeFactor || 0,
       imageUnscale: imageUnscale || [0, 0],
@@ -435,10 +449,9 @@ export default class ParticleLayer<
       numParticles,
       maxAge,
       speedFactor: currentSpeedFactor,
-      time,
+      time: timeline.getTime(),
       seed: Math.random(),
     };
-
     transform.model.shaderInputs.setProps({ bitmap: moduleUniforms });
     transform.run({
       clearColor: false,
@@ -448,7 +461,9 @@ export default class ParticleLayer<
       stencilReadOnly: true,
     });
 
-    // shift ages down by one
+    // As discussed in _setupTransformFeedback()
+    // We copy the buffer across, but shift everything down 'one age'.
+    // Oldest has dsisappeared, the blank at the start is the youngest.
     const encoder = this.context.device.createCommandEncoder();
     encoder.copyBufferToBuffer({
       sourceBuffer: sourcePositions,
@@ -460,10 +475,9 @@ export default class ParticleLayer<
     encoder.finish();
     encoder.destroy();
 
-    // swap buffers
+    // Swap the buffers.
     this.state.sourcePositions = targetPositions;
     this.state.targetPositions = sourcePositions;
-
     transform.model.setAttributes({
       sourcePosition: targetPositions,
     });
@@ -472,18 +486,25 @@ export default class ParticleLayer<
     });
 
     this.state.previousViewportZoom = viewport.zoom;
-    this.state.previousTime = time;
+    this.state.previousFrame = frame;
   }
 
   _resetTransformFeedback() {
-    if (!this.state.initialized) return;
+    const { initialized } = this.state;
+    if (!initialized) {
+      return;
+    }
+
     const { sourcePositions, targetPositions, numInstances } = this.state;
     sourcePositions.write(new Float32Array(numInstances * 3));
     targetPositions.write(new Float32Array(numInstances * 3));
   }
 
   _deleteTransformFeedback() {
-    if (!this.state.initialized) return;
+    const { initialized } = this.state;
+    if (!initialized) {
+      return;
+    }
 
     const { sourcePositions, targetPositions, colors, transform } = this.state;
     sourcePositions.destroy();
@@ -493,15 +514,19 @@ export default class ParticleLayer<
 
     this.setState({
       initialized: false,
-      sourcePositions: undefined as any,
-      targetPositions: undefined as any,
-      colors: undefined as any,
-      transform: undefined as any,
+      sourcePositions: undefined,
+      targetPositions: undefined,
+      colors: undefined,
+      transform: undefined,
     });
   }
 
+  // If it's animated we repeat the BufferTransform process.
   requestStep() {
-    if (this.state.stepRequested) return;
+    const { stepRequested } = this.state;
+    if (stepRequested) {
+      return;
+    }
 
     this.state.stepRequested = true;
     setTimeout(() => {
@@ -512,11 +537,13 @@ export default class ParticleLayer<
 
   step() {
     this._runTransformFeedback();
+
     this.setNeedsRedraw();
   }
 
   clear() {
     this._resetTransformFeedback();
+
     this.setNeedsRedraw();
   }
 }
@@ -524,12 +551,15 @@ export default class ParticleLayer<
 ParticleLayer.layerName = "ParticleLayer";
 ParticleLayer.defaultProps = defaultProps;
 
-// -------------------- Viewport Functions --------------------
-
-export function getViewportBounds(viewport: any) {
+// Viewport Functions
+export function getViewportBounds(viewport) {
   return wrapBounds(viewport.getBounds());
 }
 
+/**
+ * Modulo rather than remainder.
+ * See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Remainder#description
+ */
 function modulo(x: number, y: number): number {
   return ((x % y) + y) % y;
 }
@@ -546,10 +576,12 @@ export function wrapLongitude(
 }
 
 export function wrapBounds(bounds: GeoJSON.BBox): GeoJSON.BBox {
+  // Wrap Longitude
   const minLng = bounds[2] - bounds[0] < 360 ? wrapLongitude(bounds[0]) : -180;
   const maxLng =
     bounds[2] - bounds[0] < 360 ? wrapLongitude(bounds[2], minLng) : 180;
 
+  // Clip Latitude
   const minLat = Math.max(bounds[1], -90);
   const maxLat = Math.min(bounds[3], 90);
 
