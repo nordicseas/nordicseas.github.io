@@ -372,11 +372,12 @@ export default function App() {
 
   return (
     <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
-      <audio
-        ref={audioRef}
-        src={`${import.meta.env.BASE_URL}Dmitri Shostakovich Jazz Suite Waltz No.2.mp3`}
-        preload="auto"
-      />
+	      <audio
+	        ref={audioRef}
+	        src={`${import.meta.env.BASE_URL}Dmitri Shostakovich Jazz Suite Waltz No.2.mp3`}
+	        preload="auto"
+	        loop
+	      />
 
       <DeckGL
         ref={ref}
