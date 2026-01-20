@@ -237,21 +237,24 @@ export default function App() {
         minLabel: "slow",
         maxLabel: "fast",
         gradient:
-          "linear-gradient(90deg, #0a1d5a, #1b3f9a, #3f74c9, #86b9f1, #f2d06b, #d84a3a)",
+          // parula (MATLAB)
+          "linear-gradient(90deg, #352A87, #0363E1, #1485D4, #06A7C6, #38B99E, #92BF73, #D9BA56, #FCCE2E, #F9FB0E)",
       },
       deep: {
         scaleLabel: "Scale:",
         minLabel: "0",
         maxLabel: "0.2",
         gradient:
-          "linear-gradient(90deg, #0a1d5a, #1b3f9a, #3f74c9, #86b9f1, #f2d06b, #d84a3a)",
+          // parula (MATLAB)
+          "linear-gradient(90deg, #352A87, #0363E1, #1485D4, #06A7C6, #38B99E, #92BF73, #D9BA56, #FCCE2E, #F9FB0E)",
       },
       vort: {
         scaleLabel: "Scale:",
         minLabel: "-0.4",
         maxLabel: "0.4",
         gradient:
-          "linear-gradient(90deg, #2d004b, #5b2a86, #4a6fe3, #8fb3ff, #f7f7f7, #ffc8a3, #ea6e57, #b7002a)",
+          // cmocean.cm.curl
+          "linear-gradient(90deg, #151D44, #1B5968, #2C947F, #A3C2A2, #FFF6F4, #E2A78F, #C35961, #852060, #340D35)",
       },
       sst: {
         scaleLabel: "Scale (°C):",
@@ -272,14 +275,16 @@ export default function App() {
         minLabel: "0",
         maxLabel: "1",
         gradient:
-          "linear-gradient(90deg, #0b1b2b, #1b3c5a, #2f6c8e, #4ea3b1, #8fd1cf, #d6f2f5, #ffffff)",
+          // cmocean.cm.ice
+          "linear-gradient(90deg, #040613, #212041, #383975, #3F57A3, #427BB7, #589DC3, #7BBFD0, #B1DEE2, #EAFDFD)",
       },
       wind: {
         scaleLabel: "Normalized wind stress N/m^2",
         minLabel: "0",
         maxLabel: "1",
         gradient:
-          "linear-gradient(90deg, #23145b, #3d3a91, #275fa8, #1c86a5, #1ca59a, #4ebf7a, #9ad14c, #f4d24e)",
+          // cmocean.cm.tempo
+          "linear-gradient(90deg, #FFF6F4, #D2D9C7, #A1C1A1, #69AB89, #2A937F, #117677, #1B5867, #1B3B55, #151D44)",
       },
     } as const;
     return gradients[overlay];
