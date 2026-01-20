@@ -1,1 +1,0 @@
-# nordicseas.github.io
