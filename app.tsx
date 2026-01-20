@@ -121,7 +121,7 @@ export default function App() {
   const [fps, setFps] = useState(1);
   const [blend, setBlend] = useState(0);
   const [overlay, setOverlay] = useState<
-    "mag" | "deep" | "vort" | "sst" | "sss" | "ice" | "wind"
+    "mag" | "deep" | "vort" | "sst" | "sss" | "ice" | "wind" | "topo"
   >("mag");
   const [showParticles, setShowParticles] = useState(true);
   const [movieOn, setMovieOn] = useState(false);
@@ -213,6 +213,9 @@ export default function App() {
 
   const overlayFrames = useMemo(() => {
     const base = import.meta.env.BASE_URL;
+    if (overlay === "topo") {
+      return DATES.map(() => `${base}topography.png`);
+    }
     const prefix =
       overlay === "ice"
         ? "SI"
@@ -285,6 +288,13 @@ export default function App() {
         gradient:
           // cmocean.cm.tempo
           "linear-gradient(90deg, #FFF6F4, #D2D9C7, #A1C1A1, #69AB89, #2A937F, #117677, #1B5867, #1B3B55, #151D44)",
+      },
+      topo: {
+        scaleLabel: "Depth (m):",
+        minLabel: "50",
+        maxLabel: "4200",
+        gradient:
+          "linear-gradient(90deg, #08306B, #08519C, #2171B5, #4292C6, #6BAED6, #9ECAE1, #C6DBEF, #DEEBF7, #F7FBFF)",
       },
     } as const;
     return gradients[overlay];
@@ -418,13 +428,14 @@ export default function App() {
 	        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
 	          <div style={{ fontSize: 12, opacity: 0.9 }}>Data:</div>
 	          <div style={{ display: "flex", gap: 8, flexWrap: "nowrap" }}>
-            {[
-              { id: "mag", label: "Surface Currents" },
-              { id: "deep", label: "Deep Currents" },
-              { id: "vort", label: "Vorticity" },
-              { id: "sst", label: "SST" },
-              { id: "sss", label: "SSS" },
-              { id: "ice", label: "Ice" },
+	            {[
+	              { id: "mag", label: "Surface Currents" },
+	              { id: "deep", label: "Deep Currents" },
+	              { id: "topo", label: "Topo" },
+	              { id: "vort", label: "Vorticity" },
+	              { id: "sst", label: "SST" },
+	              { id: "sss", label: "SSS" },
+	              { id: "ice", label: "Ice" },
               { id: "wind", label: "Wind" },
             ].map((opt) => (
               <button
