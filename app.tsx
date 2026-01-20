@@ -12,10 +12,28 @@ const MAP_STYLE =
 // lon/lat bounds for your uv_*.png
 const BOUNDS: [number, number, number, number] = [-30, 57.67, 23.25, 81.5];
 
-// Tune particle speed to match the "simple" repo's default feel.
-// That demo is tuned around ~zoom 3.8 with speedFactor ~3.
-const FLOW_REFERENCE_ZOOM = 3.8;
-const FLOW_REFERENCE_SPEED_FACTOR = 3;
+// Particle defaults (user-tweakable in the control panel)
+const DEFAULT_FLOW_SPEED_FACTOR = 1.6;
+const DEFAULT_FLOW_WIDTH = 2;
+
+function readStoredNumber(key: string): number | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw == null) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredNumber(key: string, value: number) {
+  try {
+    window.localStorage.setItem(key, String(value));
+  } catch {
+    // ignore
+  }
+}
 
 const DATES = [
   "2011-01-04",
@@ -120,6 +138,14 @@ export default function App() {
   const [playing, setPlaying] = useState(false);
   const [fps, setFps] = useState(2);
   const [blend, setBlend] = useState(0);
+  const [flowSpeedFactor, setFlowSpeedFactor] = useState(() => {
+    const stored = readStoredNumber("flowSpeedFactor");
+    return stored != null && stored > 0 ? stored : DEFAULT_FLOW_SPEED_FACTOR;
+  });
+  const [flowWidth, setFlowWidth] = useState(() => {
+    const stored = readStoredNumber("flowWidth");
+    return stored != null && stored > 0 ? stored : DEFAULT_FLOW_WIDTH;
+  });
   const [overlay, setOverlay] = useState<
     "mag" | "deep" | "vort" | "sst" | "sss" | "ice" | "wind"
   >("mag");
@@ -168,6 +194,17 @@ export default function App() {
   useEffect(() => {
     setPlaying(movieOn);
   }, [movieOn]);
+
+  useEffect(() => {
+    writeStoredNumber(
+      "flowSpeedFactor",
+      flowSpeedFactor || DEFAULT_FLOW_SPEED_FACTOR
+    );
+  }, [flowSpeedFactor]);
+
+  useEffect(() => {
+    writeStoredNumber("flowWidth", flowWidth || DEFAULT_FLOW_WIDTH);
+  }, [flowWidth]);
 
   useEffect(() => {
     if (!playing) {
@@ -304,13 +341,6 @@ export default function App() {
     return { longitude, latitude, zoom };
   }, [viewportSize.height, viewportSize.width]);
 
-  const flowSpeedFactor = useMemo(() => {
-    return (
-      FLOW_REFERENCE_SPEED_FACTOR *
-      2 ** (initialViewState.zoom - FLOW_REFERENCE_ZOOM)
-    );
-  }, [initialViewState.zoom]);
-
   const layers = [
     new BitmapLayer({
       id: "magnitude-raster",
@@ -337,7 +367,7 @@ export default function App() {
             maxAge: 40,
             speedFactor: flowSpeedFactor,
             color: [255, 255, 255, 255],
-            width: 2,
+            width: flowWidth,
             opacity: 0.5,
           }),
         ]
@@ -549,6 +579,52 @@ export default function App() {
             />
           </button>
           <div style={{ fontSize: 12, opacity: 0.9 }}>Audio</div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ fontSize: 12, opacity: 0.9 }}>Flow settings:</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 12, opacity: 0.75 }}>speed</span>
+            <input
+              type="range"
+              min={0.5}
+              max={4}
+              step={0.1}
+              value={flowSpeedFactor}
+              onChange={(e) => setFlowSpeedFactor(Number(e.target.value))}
+              style={{ width: 120 }}
+            />
+            <input
+              type="number"
+              value={flowSpeedFactor}
+              min={0.1}
+              max={20}
+              step={0.1}
+              onChange={(e) => setFlowSpeedFactor(Number(e.target.value) || 0)}
+              style={{
+                width: 52,
+                padding: 0,
+                border: "none",
+                background: "transparent",
+                color: "white",
+              }}
+            />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 12, opacity: 0.75 }}>size</span>
+            <input
+              type="range"
+              min={1}
+              max={4}
+              step={0.5}
+              value={flowWidth}
+              onChange={(e) => setFlowWidth(Number(e.target.value))}
+              style={{ width: 90 }}
+            />
+            <span style={{ fontSize: 12, opacity: 0.75, width: 22 }}>
+              {flowWidth}
+            </span>
+          </div>
         </div>
 
         <div style={{ fontSize: 12, opacity: 0.75 }}>
