@@ -387,10 +387,10 @@ export default function App() {
         <Map reuseMaps mapStyle={MAP_STYLE} />
       </DeckGL>
 
-      {/* Bottom-left control + legend */}
-      <div
-        style={{
-          position: "absolute",
+	      {/* Bottom-left control + legend */}
+	      <div
+	        style={{
+	          position: "absolute",
           left: 12,
           bottom: 12,
           width: 480,
@@ -402,12 +402,16 @@ export default function App() {
           display: "flex",
           flexDirection: "column",
           gap: 6,
-          pointerEvents: "auto",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ fontSize: 12, opacity: 0.9 }}>Data:</div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "nowrap" }}>
+	          pointerEvents: "auto",
+	        }}
+	      >
+	        <div style={{ fontSize: 12, opacity: 0.75 }}>
+	          Source: MITgcm simulation
+	        </div>
+
+	        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+	          <div style={{ fontSize: 12, opacity: 0.9 }}>Data:</div>
+	          <div style={{ display: "flex", gap: 8, flexWrap: "nowrap" }}>
             {[
               { id: "mag", label: "Surface Currents" },
               { id: "deep", label: "Deep Currents" },
@@ -438,8 +442,8 @@ export default function App() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button
-            type="button"
+	          <button
+	            type="button"
             role="switch"
             aria-checked={showParticles}
             onClick={() => setShowParticles((v) => !v)}
@@ -544,17 +548,13 @@ export default function App() {
               }}
             />
           </button>
-          <div style={{ fontSize: 12, opacity: 0.9 }}>Audio</div>
-        </div>
+	          <div style={{ fontSize: 12, opacity: 0.9 }}>Audio</div>
+	        </div>
 
-        <div style={{ fontSize: 12, opacity: 0.75 }}>
-          Source: MITgcm simulation
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ fontSize: 12, opacity: 0.9 }}>
-            Date: {formatDateLabel(currentDate)}
-          </div>
+	        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+	          <div style={{ fontSize: 12, opacity: 0.9 }}>
+	            Date: {formatDateLabel(currentDate)}
+	          </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <button
               onClick={() =>
