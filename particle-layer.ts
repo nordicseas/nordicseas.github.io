@@ -65,6 +65,7 @@ export const bitmapUniforms = {
 
 const FPS = 30;
 const DEFAULT_COLOR: [number, number, number, number] = [255, 255, 255, 255];
+const SPEED_ZOOM_REFERENCE = 3.0;
 
 export type Bbox = [number, number, number, number];
 
@@ -419,7 +420,8 @@ export default class ParticleLayer<
     const viewportZoomChangeFactor =
       2 ** ((previousViewportZoom - viewport.zoom) * 4);
 
-    const currentSpeedFactor = speedFactor / 2 ** (viewport.zoom + 7);
+    const currentSpeedFactor =
+      speedFactor / 2 ** (SPEED_ZOOM_REFERENCE + 7);
 
     const moduleUniforms: UniformProps = {
       bitmapTexture: texture,
