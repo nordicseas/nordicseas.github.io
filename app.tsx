@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Map } from "react-map-gl/maplibre";
 import DeckGL, { DeckGLRef } from "@deck.gl/react";
-import type { MapViewState } from "@deck.gl/core";
+import { WebMercatorViewport, type MapViewState } from "@deck.gl/core";
 import { BitmapLayer, TextLayer } from "@deck.gl/layers";
 import ParticleLayer from "./particle-layer";
 
@@ -111,6 +111,10 @@ export default function App() {
   const [movieOn, setMovieOn] = useState(false);
   const [audioOn, setAudioOn] = useState(false);
   const idxRef = useRef(idx);
+  const [viewportSize, setViewportSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
 
   const frames = useMemo(() => {
     const base = import.meta.env.BASE_URL; // handles /demo/deck-particle-layer/
@@ -128,6 +132,17 @@ export default function App() {
   useEffect(() => {
     idxRef.current = idx;
   }, [idx]);
+
+  useEffect(() => {
+    const onResize = () => {
+      setViewportSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     setFps(overlay === "wind" ? 1 : 2);
@@ -258,11 +273,20 @@ export default function App() {
     } as const;
     return gradients[overlay];
   }, [overlay]);
-  const initialViewState: MapViewState = {
-    longitude: -3.4,
-    latitude: 69.6,
-    zoom: 2.8,
-  };
+  const initialViewState = useMemo((): MapViewState => {
+    const viewport = new WebMercatorViewport({
+      width: viewportSize.width,
+      height: viewportSize.height,
+    });
+    const { longitude, latitude, zoom } = viewport.fitBounds(
+      [
+        [BOUNDS[0], BOUNDS[1]],
+        [BOUNDS[2], BOUNDS[3]],
+      ],
+      { padding: 40 }
+    );
+    return { longitude, latitude, zoom };
+  }, [viewportSize.height, viewportSize.width]);
 
   const layers = [
     new BitmapLayer({
@@ -329,6 +353,30 @@ export default function App() {
 
   return (
     <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
+      <div
+        style={{
+          position: "absolute",
+          right: 12,
+          top: 12,
+          zIndex: 6,
+          padding: "6px 8px",
+          borderRadius: 8,
+          background: "rgba(0,0,0,0.6)",
+          color: "white",
+          fontFamily: "system-ui, sans-serif",
+          fontSize: 11,
+          lineHeight: 1.3,
+          maxWidth: 320,
+          pointerEvents: "none",
+        }}
+      >
+        <div>idx: {idx}</div>
+        <div>overlay: {overlay}</div>
+        <div>uv: {imageUrl}</div>
+        <div>uv next: {imageNextUrl}</div>
+        <div>mag: {magUrl}</div>
+        <div>mag next: {magNextUrl}</div>
+      </div>
       <audio
         ref={audioRef}
         src={`${import.meta.env.BASE_URL}Dmitri Shostakovich Jazz Suite Waltz No.2.mp3`}
