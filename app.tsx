@@ -9,6 +9,36 @@ import ParticleLayer from "./particle-layer";
 const MAP_STYLE =
   "https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json";
 
+function MapMyVisitorsGlobe() {
+  useEffect(() => {
+    const scriptId = "mmvst_globe";
+    const containerId = "mmvst_globe_container";
+    if (document.getElementById(scriptId)) return;
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const script = document.createElement("script");
+    script.type = "text/javascript";
+    script.id = scriptId;
+    script.async = true;
+    script.src =
+      "//mapmyvisitors.com/globe.js?d=rZXChnye5cXkeN8T3VSEw6D-p7Xco7fKAYYLPuyyypA";
+    container.appendChild(script);
+  }, []);
+
+  return (
+    <div
+      id="mmvst_globe_container"
+      style={{
+        position: "absolute",
+        right: 12,
+        bottom: 12,
+        zIndex: 5,
+        pointerEvents: "auto",
+      }}
+    />
+  );
+}
+
 // lon/lat bounds for your uv_*.png
 const BOUNDS: [number, number, number, number] = [-30, 57.67, 23.25, 81.5];
 
@@ -385,8 +415,8 @@ export default function App() {
     }),
   ];
 
-  return (
-    <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
+	  return (
+	    <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
 	      <audio
 	        ref={audioRef}
 	        src={`${import.meta.env.BASE_URL}Dmitri Shostakovich Jazz Suite Waltz No.2.mp3`}
@@ -399,9 +429,12 @@ export default function App() {
         layers={layers}
         initialViewState={initialViewState}
         controller={true}
-      >
-        <Map reuseMaps mapStyle={MAP_STYLE} />
-      </DeckGL>
+	      >
+	        <Map reuseMaps mapStyle={MAP_STYLE} />
+	      </DeckGL>
+
+	      {/* Bottom-right visitor globe */}
+	      <MapMyVisitorsGlobe />
 
 	      {/* Bottom-left control + legend */}
 	      <div
