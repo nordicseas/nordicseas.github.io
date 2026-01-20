@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Map } from "react-map-gl/maplibre";
 import DeckGL, { DeckGLRef } from "@deck.gl/react";
-import { WebMercatorViewport, type MapViewState } from "@deck.gl/core";
+import type { MapViewState } from "@deck.gl/core";
 import { BitmapLayer, TextLayer } from "@deck.gl/layers";
 import ParticleLayer from "./particle-layer";
 
@@ -111,10 +111,6 @@ export default function App() {
   const [movieOn, setMovieOn] = useState(false);
   const [audioOn, setAudioOn] = useState(false);
   const idxRef = useRef(idx);
-  const [viewportSize, setViewportSize] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  });
 
   const frames = useMemo(() => {
     const base = import.meta.env.BASE_URL; // handles /demo/deck-particle-layer/
@@ -140,17 +136,6 @@ export default function App() {
   useEffect(() => {
     setPlaying(movieOn);
   }, [movieOn]);
-
-  useEffect(() => {
-    const onResize = () => {
-      setViewportSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
 
   useEffect(() => {
     if (!playing) {
@@ -273,20 +258,11 @@ export default function App() {
     } as const;
     return gradients[overlay];
   }, [overlay]);
-  const initialViewState = useMemo((): MapViewState => {
-    const viewport = new WebMercatorViewport({
-      width: viewportSize.width,
-      height: viewportSize.height,
-    });
-    const { longitude, latitude, zoom } = viewport.fitBounds(
-      [
-        [BOUNDS[0], BOUNDS[1]],
-        [BOUNDS[2], BOUNDS[3]],
-      ],
-      { padding: 40 }
-    );
-    return { longitude, latitude, zoom: 2.8 };
-  }, [viewportSize.height, viewportSize.width]);
+  const initialViewState: MapViewState = {
+    longitude: -3.4,
+    latitude: 69.6,
+    zoom: 2.8,
+  };
 
   const layers = [
     new BitmapLayer({
