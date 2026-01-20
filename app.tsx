@@ -33,6 +33,7 @@ function MapMyVisitorsGlobe() {
         right: 12,
         bottom: 12,
         zIndex: 5,
+        width: 220,
         pointerEvents: "auto",
       }}
     />
