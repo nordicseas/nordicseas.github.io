@@ -122,7 +122,7 @@ export default function App() {
   const [blend, setBlend] = useState(0);
   const [overlay, setOverlay] = useState<
     "mag" | "deep" | "vort" | "sst" | "sss" | "ice" | "wind" | "topo"
-  >("mag");
+  >("topo");
   const [showParticles, setShowParticles] = useState(true);
   const [movieOn, setMovieOn] = useState(false);
   const [audioOn, setAudioOn] = useState(false);
@@ -430,20 +430,20 @@ export default function App() {
 	        }}
 	      >
 	        <div style={{ fontSize: 12, opacity: 0.75 }}>
-	          Source: MITgcm simulation
+	          Source: MITgcm simulation (Demo)
 	        </div>
 
 	        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
 	          <div style={{ fontSize: 12, opacity: 0.9 }}>Data:</div>
-	          <div style={{ display: "flex", gap: 8, flexWrap: "nowrap" }}>
-	            {[
-	              { id: "mag", label: "Surface Currents" },
-	              { id: "deep", label: "Deep Currents" },
-	              { id: "topo", label: "Topo" },
-	              { id: "vort", label: "Vorticity" },
-	              { id: "sst", label: "SST" },
-	              { id: "sss", label: "SSS" },
-	              { id: "ice", label: "Ice" },
+		          <div style={{ display: "flex", gap: 8, flexWrap: "nowrap" }}>
+		            {[
+		              { id: "topo", label: "Topo" },
+		              { id: "mag", label: "Surface Currents" },
+		              { id: "deep", label: "Deep Currents" },
+		              { id: "vort", label: "Vorticity" },
+		              { id: "sst", label: "SST" },
+		              { id: "sss", label: "SSS" },
+		              { id: "ice", label: "Ice" },
               { id: "wind", label: "Wind" },
             ].map((opt) => (
               <button
