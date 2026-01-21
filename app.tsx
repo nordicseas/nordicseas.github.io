@@ -166,9 +166,7 @@ export default function App() {
   }, [movieOn]);
 
   useEffect(() => {
-    if (overlay === "deep" || overlay === "wind") {
-      setShowParticles(false);
-    }
+    setShowParticles(!(overlay === "deep" || overlay === "wind"));
   }, [overlay]);
 
   const surfaceFlowToggleEnabled = overlay !== "deep" && overlay !== "wind";
