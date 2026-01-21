@@ -171,6 +171,10 @@ export default function App() {
     }
   }, [overlay]);
 
+  const surfaceFlowToggleEnabled = overlay !== "deep" && overlay !== "wind";
+  const showFlowParticles =
+    overlay === "deep" || overlay === "wind" ? true : showParticles;
+
   useEffect(() => {
     if (!playing) {
       setBlend(0);
@@ -341,7 +345,7 @@ export default function App() {
       bounds: BOUNDS,
       opacity: magOpacity * blend,
     }),
-    ...(showParticles
+    ...(showFlowParticles
       ? [
           new ParticleLayer({
             id: "flow",
@@ -467,24 +471,33 @@ export default function App() {
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
 	          <button
 	            type="button"
-            role="switch"
-            aria-checked={showParticles}
-            onClick={() => setShowParticles((v) => !v)}
-            style={{
-              position: "relative",
-              width: 36,
-              height: 20,
-              borderRadius: 999,
-              border: "1px solid rgba(255,255,255,0.25)",
-              background: showParticles
-                ? "rgba(94,201,120,0.9)"
-                : "rgba(255,255,255,0.15)",
-              cursor: "pointer",
-              padding: 0,
-              transition: "background 160ms ease",
-            }}
-            title="Toggle flow particles"
-          >
+	            role="switch"
+	            aria-checked={showParticles}
+	            disabled={!surfaceFlowToggleEnabled}
+	            onClick={() => {
+	              if (!surfaceFlowToggleEnabled) return;
+	              setShowParticles((v) => !v);
+	            }}
+	            style={{
+	              position: "relative",
+	              width: 36,
+	              height: 20,
+	              borderRadius: 999,
+	              border: "1px solid rgba(255,255,255,0.25)",
+	              background: showParticles
+	                ? "rgba(94,201,120,0.9)"
+	                : "rgba(255,255,255,0.15)",
+	              cursor: surfaceFlowToggleEnabled ? "pointer" : "not-allowed",
+	              padding: 0,
+	              transition: "background 160ms ease",
+	              opacity: surfaceFlowToggleEnabled ? 1 : 0.55,
+	            }}
+	            title={
+	              surfaceFlowToggleEnabled
+	                ? "Toggle surface flow particles"
+	                : "Surface flow particles are disabled for this dataset"
+	            }
+	          >
             <span
               style={{
                 position: "absolute",
@@ -498,8 +511,8 @@ export default function App() {
                 transition: "left 160ms ease",
               }}
             />
-          </button>
-          <div style={{ fontSize: 12, opacity: 0.9 }}>Surafec Flow</div>
+	          </button>
+	          <div style={{ fontSize: 12, opacity: 0.9 }}>Surface Flow</div>
 
           <button
             type="button"
