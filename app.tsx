@@ -310,7 +310,7 @@ export default function App() {
         minLabel: "50",
         maxLabel: "4200",
         gradient:
-          "linear-gradient(90deg, #08306B, #08519C, #2171B5, #4292C6, #6BAED6, #9ECAE1, #C6DBEF, #DEEBF7, #F7FBFF)",
+          "linear-gradient(90deg, #F7FBFF, #DEEBF7, #C6DBEF, #9ECAE1, #6BAED6, #4292C6, #2171B5, #08519C, #08306B)",
       },
     } as const;
     return gradients[overlay];
