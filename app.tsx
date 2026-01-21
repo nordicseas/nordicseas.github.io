@@ -491,7 +491,7 @@ export default function App() {
 		              { id: "sst", label: "SST" },
 		              { id: "sss", label: "SSS" },
 		              { id: "ice", label: "Ice" },
-              { id: "wind", label: "Wind" },
+              { id: "wind", label: "Wind Stress" },
             ].map((opt) => (
               <button
                 key={opt.id}
