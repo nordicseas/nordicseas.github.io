@@ -171,14 +171,13 @@ export default function App() {
   }, [overlay]);
 
   useEffect(() => {
-    setShowWindFlow(overlay === "wind");
+    if (overlay === "wind") {
+      setShowWindFlow(true);
+    }
   }, [overlay]);
 
   const surfaceFlowToggleEnabled = overlay !== "deep" && overlay !== "wind";
-  const windFlowToggleEnabled = overlay === "wind";
-  const showFlowParticles =
-    overlay === "wind" ? showWindFlow : overlay === "deep" ? true : showParticles;
-  const flowColorScheme = overlay === "wind" ? "amp" : "nullschool";
+  const windFlowToggleEnabled = true;
 
   useEffect(() => {
     if (!playing) {
@@ -220,11 +219,13 @@ export default function App() {
   }, [audioOn]);
 
   const currentDate = DATES[idx];
-  const particleFrames =
-    overlay === "wind" ? windFrames : overlay === "deep" ? deepFrames : frames;
-  const imageUrl = particleFrames[idx];
   const nextIdx = (idx + 1) % frames.length;
-  const imageNextUrl = particleFrames[nextIdx];
+  const surfaceImageUrl = frames[idx];
+  const surfaceImageNextUrl = frames[nextIdx];
+  const deepImageUrl = deepFrames[idx];
+  const deepImageNextUrl = deepFrames[nextIdx];
+  const windImageUrl = windFrames[idx];
+  const windImageNextUrl = windFrames[nextIdx];
 
   const overlayFrames = useMemo(() => {
     const base = import.meta.env.BASE_URL;
@@ -350,12 +351,12 @@ export default function App() {
       bounds: BOUNDS,
       opacity: magOpacity * blend,
     }),
-    ...(showFlowParticles
+    ...(surfaceFlowToggleEnabled && showParticles
       ? [
           new ParticleLayer({
-            id: "flow",
-            image: imageUrl,
-            imageNext: imageNextUrl,
+            id: "surface-flow",
+            image: surfaceImageUrl,
+            imageNext: surfaceImageNextUrl,
             blend,
             imageUnscale: [-128, 127],
             bounds: BOUNDS,
@@ -363,9 +364,47 @@ export default function App() {
             maxAge: 45,
             speedFactor: flowSpeedFactor,
             color: [255, 255, 255, 255],
-            colorScheme: flowColorScheme,
+            colorScheme: "nullschool",
             width: 2,
             opacity: 0.8,
+          }),
+        ]
+      : []),
+    ...(overlay === "deep"
+      ? [
+          new ParticleLayer({
+            id: "deep-flow",
+            image: deepImageUrl,
+            imageNext: deepImageNextUrl,
+            blend,
+            imageUnscale: [-128, 127],
+            bounds: BOUNDS,
+            numParticles: 12000,
+            maxAge: 45,
+            speedFactor: flowSpeedFactor,
+            color: [255, 255, 255, 255],
+            colorScheme: "nullschool",
+            width: 2,
+            opacity: 0.8,
+          }),
+        ]
+      : []),
+    ...(showWindFlow
+      ? [
+          new ParticleLayer({
+            id: "wind-flow",
+            image: windImageUrl,
+            imageNext: windImageNextUrl,
+            blend,
+            imageUnscale: [-128, 127],
+            bounds: BOUNDS,
+            numParticles: 12000,
+            maxAge: 45,
+            speedFactor: flowSpeedFactor,
+            color: [255, 255, 255, 255],
+            colorScheme: "amp",
+            width: 2,
+            opacity: 0.85,
           }),
         ]
       : []),
@@ -546,7 +585,7 @@ export default function App() {
 	            title={
 	              windFlowToggleEnabled
 	                ? "Toggle wind flow particles"
-	                : "Wind flow is available on the Wind dataset"
+	                : "Wind flow particles"
 	            }
 	          >
 	            <span
