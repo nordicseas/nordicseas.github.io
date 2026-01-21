@@ -80,6 +80,7 @@ export type ParticleLayerProps<D = unknown> = LineLayerProps<D> & {
   color: Color;
   width: number;
   animate?: boolean;
+  colorScheme?: "nullschool" | "amp";
   wrapLongitude: boolean;
 };
 
@@ -100,6 +101,7 @@ const defaultProps: DefaultProps<ParticleLayerProps> = {
   animate: { type: "boolean", value: true },
 
   bounds: { type: "array", value: [-180, -90, 180, 90], compare: true },
+  colorScheme: "nullschool",
   wrapLongitude: true,
 };
 
@@ -129,6 +131,8 @@ export default class ParticleLayer<
   // Speed-colored particles (expects speed magnitude normalized 0..1 stored in instanceTargetPositions.z)
   getShaders() {
     const oldShaders = super.getShaders();
+    const scheme = this.props.colorScheme ?? "nullschool";
+    const fnName = scheme === "amp" ? "ampColormap" : "nullschoolColormap";
     return {
       ...oldShaders,
       inject: {
@@ -168,12 +172,36 @@ export default class ParticleLayer<
                          (t - 0.75) / 0.25);
             }
           }
+
+          // cmocean.cm.amp (approx, 9 stops)
+          vec3 ampColormap(float t) {
+            t = clamp(t, 0.0, 1.0);
+            vec3 c0 = vec3(0.945098, 0.929412, 0.925490);
+            vec3 c1 = vec3(0.886275, 0.780392, 0.749020);
+            vec3 c2 = vec3(0.843137, 0.635294, 0.568627);
+            vec3 c3 = vec3(0.800000, 0.494118, 0.392157);
+            vec3 c4 = vec3(0.752941, 0.345098, 0.231373);
+            vec3 c5 = vec3(0.686275, 0.188235, 0.141176);
+            vec3 c6 = vec3(0.564706, 0.062745, 0.160784);
+            vec3 c7 = vec3(0.396078, 0.058824, 0.141176);
+            vec3 c8 = vec3(0.235294, 0.035294, 0.070588);
+
+            float s = 1.0 / 8.0;
+            if (t < 1.0 * s) return mix(c0, c1, t / s);
+            if (t < 2.0 * s) return mix(c1, c2, (t - 1.0 * s) / s);
+            if (t < 3.0 * s) return mix(c2, c3, (t - 2.0 * s) / s);
+            if (t < 4.0 * s) return mix(c3, c4, (t - 3.0 * s) / s);
+            if (t < 5.0 * s) return mix(c4, c5, (t - 4.0 * s) / s);
+            if (t < 6.0 * s) return mix(c5, c6, (t - 5.0 * s) / s);
+            if (t < 7.0 * s) return mix(c6, c7, (t - 6.0 * s) / s);
+            return mix(c7, c8, (t - 7.0 * s) / s);
+          }
         `,
         "fs:#main-start": `
           if (drop > 0.5) discard;
         `,
         "fs:DECKGL_FILTER_COLOR": `
-          vec3 rgb = nullschoolColormap(vSpeed);
+          vec3 rgb = ${fnName}(vSpeed);
           color.rgb = rgb;
         `,
       },

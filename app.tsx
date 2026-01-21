@@ -124,6 +124,7 @@ export default function App() {
     "mag" | "deep" | "vort" | "sst" | "sss" | "ice" | "wind" | "topo"
   >("topo");
   const [showParticles, setShowParticles] = useState(true);
+  const [showWindFlow, setShowWindFlow] = useState(false);
   const [movieOn, setMovieOn] = useState(false);
   const [audioOn, setAudioOn] = useState(false);
 
@@ -169,9 +170,15 @@ export default function App() {
     setShowParticles(!(overlay === "deep" || overlay === "wind"));
   }, [overlay]);
 
+  useEffect(() => {
+    setShowWindFlow(overlay === "wind");
+  }, [overlay]);
+
   const surfaceFlowToggleEnabled = overlay !== "deep" && overlay !== "wind";
+  const windFlowToggleEnabled = overlay === "wind";
   const showFlowParticles =
-    overlay === "deep" || overlay === "wind" ? true : showParticles;
+    overlay === "wind" ? showWindFlow : overlay === "deep" ? true : showParticles;
+  const flowColorScheme = overlay === "wind" ? "amp" : "nullschool";
 
   useEffect(() => {
     if (!playing) {
@@ -356,6 +363,7 @@ export default function App() {
             maxAge: 45,
             speedFactor: flowSpeedFactor,
             color: [255, 255, 255, 255],
+            colorScheme: flowColorScheme,
             width: 2,
             opacity: 0.8,
           }),
@@ -512,11 +520,56 @@ export default function App() {
 	          </button>
 	          <div style={{ fontSize: 12, opacity: 0.9 }}>Surface Flow</div>
 
-          <button
-            type="button"
-            role="switch"
-            aria-checked={movieOn}
-            onClick={() => setMovieOn((v) => !v)}
+	          <button
+	            type="button"
+	            role="switch"
+	            aria-checked={showWindFlow}
+	            disabled={!windFlowToggleEnabled}
+	            onClick={() => {
+	              if (!windFlowToggleEnabled) return;
+	              setShowWindFlow((v) => !v);
+	            }}
+	            style={{
+	              position: "relative",
+	              width: 36,
+	              height: 20,
+	              borderRadius: 999,
+	              border: "1px solid rgba(255,255,255,0.25)",
+	              background: showWindFlow
+	                ? "rgba(246,120,85,0.95)"
+	                : "rgba(255,255,255,0.15)",
+	              cursor: windFlowToggleEnabled ? "pointer" : "not-allowed",
+	              padding: 0,
+	              transition: "background 160ms ease",
+	              opacity: windFlowToggleEnabled ? 1 : 0.55,
+	            }}
+	            title={
+	              windFlowToggleEnabled
+	                ? "Toggle wind flow particles"
+	                : "Wind flow is available on the Wind dataset"
+	            }
+	          >
+	            <span
+	              style={{
+	                position: "absolute",
+	                top: 2,
+	                left: showWindFlow ? 18 : 2,
+	                width: 16,
+	                height: 16,
+	                borderRadius: "50%",
+	                background: "white",
+	                boxShadow: "0 1px 2px rgba(0,0,0,0.4)",
+	                transition: "left 160ms ease",
+	              }}
+	            />
+	          </button>
+	          <div style={{ fontSize: 12, opacity: 0.9 }}>Wind Flow</div>
+
+	          <button
+	            type="button"
+	            role="switch"
+	            aria-checked={movieOn}
+	            onClick={() => setMovieOn((v) => !v)}
             style={{
               position: "relative",
               width: 36,
