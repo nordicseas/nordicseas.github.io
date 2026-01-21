@@ -298,12 +298,12 @@ export default function App() {
           "linear-gradient(90deg, #040613, #212041, #383975, #3F57A3, #427BB7, #589DC3, #7BBFD0, #B1DEE2, #EAFDFD)",
       },
       wind: {
-        scaleLabel: "Scale ( N/m^2}",
-        minLabel: "slow",
-        maxLabel: "fast",
+        scaleLabel: "Scale (N/m^2):",
+        minLabel: "0",
+        maxLabel: "1",
         gradient:
-          // cmocean.cm.tempo
-          "linear-gradient(90deg, #FFF6F4, #D2D9C7, #A1C1A1, #69AB89, #2A937F, #117677, #1B5867, #1B3B55, #151D44)",
+          // cmocean.cm.amp
+          "linear-gradient(90deg, #F1EDEC, #E2C7BF, #D7A291, #CC7E64, #C0583B, #AF3024, #901029, #650F24, #3C0912)",
       },
       topo: {
         scaleLabel: "Depth (m):",
