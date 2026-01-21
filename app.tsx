@@ -9,39 +9,8 @@ import ParticleLayer from "./particle-layer";
 const MAP_STYLE =
   "https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json";
 
-function MapMyVisitorsGlobe() {
-  useEffect(() => {
-    const scriptId = "mmvst_globe";
-    const containerId = "mmvst_globe_container";
-    if (document.getElementById(scriptId)) return;
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    const script = document.createElement("script");
-    script.type = "text/javascript";
-    script.id = scriptId;
-    script.async = true;
-    script.src =
-      "//mapmyvisitors.com/globe.js?d=rZXChnye5cXkeN8T3VSEw6D-p7Xco7fKAYYLPuyyypA";
-    container.appendChild(script);
-  }, []);
-
-  return (
-    <div
-      id="mmvst_globe_container"
-      style={{
-        position: "absolute",
-        right: 12,
-        bottom: 12,
-        zIndex: 9999,
-        width: 220,
-        pointerEvents: "auto",
-      }}
-    />
-  );
-}
-
 // lon/lat bounds for your uv_*.png
-const BOUNDS: [number, number, number, number] = [-30, 57.67, 23.25, 81.5];
+const BOUNDS: [number, number, number, number] = [-30, 57.67, 23.28, 81.5];
 
 // Tune particle speed to match the "simple" repo's default feel.
 // That demo is tuned around ~zoom 3.8 with speedFactor ~3.
@@ -375,12 +344,12 @@ export default function App() {
             blend,
             imageUnscale: [-128, 127],
             bounds: BOUNDS,
-            numParticles: 15000,
-            maxAge: 40,
+            numParticles: 12000,
+            maxAge: 45,
             speedFactor: flowSpeedFactor,
             color: [255, 255, 255, 255],
             width: 2,
-            opacity: 0.5,
+            opacity: 0.8,
           }),
         ]
       : []),
@@ -434,11 +403,8 @@ export default function App() {
 	        <Map reuseMaps mapStyle={MAP_STYLE} />
 	      </DeckGL>
 
-	      {/* Bottom-right visitor globe */}
-	      <MapMyVisitorsGlobe />
-
-	      {/* Bottom-left control + legend */}
-	      <div
+		      {/* Bottom-left control + legend */}
+		      <div
 	        style={{
 	          position: "absolute",
           left: 12,
