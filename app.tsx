@@ -166,6 +166,12 @@ export default function App() {
   }, [movieOn]);
 
   useEffect(() => {
+    if (overlay === "deep" || overlay === "wind") {
+      setShowParticles(false);
+    }
+  }, [overlay]);
+
+  useEffect(() => {
     if (!playing) {
       setBlend(0);
       return;
@@ -245,36 +251,36 @@ export default function App() {
       },
       deep: {
         scaleLabel: "Scale:",
-        minLabel: "0",
-        maxLabel: "0.2",
+        minLabel: "slow",
+        maxLabel: "fast",
         gradient:
           // parula (MATLAB)
           "linear-gradient(90deg, #352A87, #0363E1, #1485D4, #06A7C6, #38B99E, #92BF73, #D9BA56, #FCCE2E, #F9FB0E)",
       },
       vort: {
         scaleLabel: "Scale:",
-        minLabel: "-0.4",
-        maxLabel: "0.4",
+        minLabel: "negative",
+        maxLabel: "positive",
         gradient:
           // cmocean.cm.curl
           "linear-gradient(90deg, #151D44, #1B5968, #2C947F, #A3C2A2, #FFF6F4, #E2A78F, #C35961, #852060, #340D35)",
       },
       sst: {
         scaleLabel: "Scale (°C):",
-        minLabel: "0",
-        maxLabel: "14",
+        minLabel: "cold",
+        maxLabel: "warm",
         gradient:
           "linear-gradient(90deg, #053061, #2166ac, #4393c3, #92c5de, #f7f7f7, #f4a582, #d6604d, #b2182b, #67001f)",
       },
       sss: {
         scaleLabel: "Scale (psu):",
-        minLabel: "32",
-        maxLabel: "35",
+        minLabel: "fresh",
+        maxLabel: "salty",
         gradient:
           "linear-gradient(90deg, #2a1867, #2f5a9e, #1a8bb6, #16b6b6, #5bd4b5, #bfe3a3, #f4d08a)",
       },
       ice: {
-        scaleLabel: "Scale:",
+        scaleLabel: "Scale: (concentration)",
         minLabel: "0",
         maxLabel: "1",
         gradient:
@@ -282,9 +288,9 @@ export default function App() {
           "linear-gradient(90deg, #040613, #212041, #383975, #3F57A3, #427BB7, #589DC3, #7BBFD0, #B1DEE2, #EAFDFD)",
       },
       wind: {
-        scaleLabel: "Normalized wind stress N/m^2",
-        minLabel: "0",
-        maxLabel: "1",
+        scaleLabel: "Scale ( N/m^2}",
+        minLabel: "slow",
+        maxLabel: "fast",
         gradient:
           // cmocean.cm.tempo
           "linear-gradient(90deg, #FFF6F4, #D2D9C7, #A1C1A1, #69AB89, #2A937F, #117677, #1B5867, #1B3B55, #151D44)",
@@ -493,7 +499,7 @@ export default function App() {
               }}
             />
           </button>
-          <div style={{ fontSize: 12, opacity: 0.9 }}>Flow</div>
+          <div style={{ fontSize: 12, opacity: 0.9 }}>Surafec Flow</div>
 
           <button
             type="button"
