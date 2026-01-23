@@ -6,12 +6,8 @@ import { WebMercatorViewport, type MapViewState } from "@deck.gl/core";
 import { BitmapLayer, TextLayer } from "@deck.gl/layers";
 import ParticleLayer from "./particle-layer";
 
-const CARTO_DARK_STYLE =
+const MAP_STYLE =
   "https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json";
-const MAPBOX_STYLE_ID = "mapbox/dark-v11";
-function getMapboxStyleUrl(token: string) {
-  return `https://api.mapbox.com/styles/v1/${MAPBOX_STYLE_ID}?access_token=${token}`;
-}
 
 // lon/lat bounds for your uv_*.png
 const BOUNDS: [number, number, number, number] = [-30, 57.67, 23.28, 81.5];
@@ -120,14 +116,6 @@ export default function App() {
   const ref = useRef<DeckGLRef>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const [mapboxToken, setMapboxToken] = useState<string>(() => {
-    const envToken = (import.meta as any).env?.VITE_MAPBOX_TOKEN as
-      | string
-      | undefined;
-    if (envToken) return envToken;
-    return window.localStorage.getItem("mapbox_token") ?? "";
-  });
-
   const [idx, setIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [fps, setFps] = useState(1);
@@ -190,10 +178,6 @@ export default function App() {
 
   const surfaceFlowToggleEnabled = overlay !== "deep" && overlay !== "wind";
   const windFlowToggleEnabled = true;
-
-  const mapStyle = useMemo(() => {
-    return mapboxToken ? getMapboxStyleUrl(mapboxToken) : CARTO_DARK_STYLE;
-  }, [mapboxToken]);
 
   useEffect(() => {
     if (!playing) {
@@ -471,8 +455,8 @@ export default function App() {
         initialViewState={initialViewState}
         controller={true}
 	      >
-		        <Map reuseMaps mapStyle={mapStyle} />
-		      </DeckGL>
+	        <Map reuseMaps mapStyle={MAP_STYLE} />
+	      </DeckGL>
 
 		      {/* Bottom-left control + legend */}
 		      <div
@@ -491,45 +475,15 @@ export default function App() {
           gap: 6,
 	          pointerEvents: "auto",
 	        }}
-		      >
-		        <div style={{ fontSize: 12, opacity: 0.75 }}>
-		          Source: MITgcm simulation (Demo)
-		        </div>
+	      >
+	        <div style={{ fontSize: 12, opacity: 0.75 }}>
+	          Source: MITgcm simulation (Demo)
+	        </div>
 
-		        {!mapboxToken && (
-		          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-		            <div style={{ fontSize: 12, opacity: 0.9 }}>Mapbox token:</div>
-		            <input
-		              value={mapboxToken}
-		              placeholder="paste token to enable Mapbox basemap"
-		              onChange={(e) => {
-		                const next = e.target.value.trim();
-		                setMapboxToken(next);
-		                try {
-		                  window.localStorage.setItem("mapbox_token", next);
-		                } catch {
-		                  // ignore
-		                }
-		              }}
-		              style={{
-		                flex: 1,
-		                minWidth: 0,
-		                padding: "2px 6px",
-		                borderRadius: 6,
-		                border: "1px solid rgba(255,255,255,0.25)",
-		                background: "rgba(0,0,0,0.25)",
-		                color: "white",
-		                fontSize: 12,
-		                outline: "none",
-		              }}
-		            />
-		          </div>
-		        )}
-
-		        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-		          <div style={{ fontSize: 12, opacity: 0.9 }}>Data:</div>
-			          <div style={{ display: "flex", gap: 8, flexWrap: "nowrap" }}>
-			            {[
+	        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+	          <div style={{ fontSize: 12, opacity: 0.9 }}>Data:</div>
+		          <div style={{ display: "flex", gap: 8, flexWrap: "nowrap" }}>
+		            {[
 		              { id: "topo", label: "Topo" },
 		              { id: "mag", label: "Surface Currents" },
 		              { id: "deep", label: "Deep Currents" },
