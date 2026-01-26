@@ -82,8 +82,14 @@ vec2 rasterGetValues(vec4 colour) {
 
 vec2 updatedPosition(vec2 position, vec2 speed) {
   float distortion = cos(radians(position.y));
-  vec2 offset;
-  offset = vec2(speed.x, speed.y * distortion);
+  vec2 offset = vec2(speed.x, speed.y * distortion);
+  // Prevent occasional outlier vectors (e.g. saturated/invalid pixels) from
+  // producing "shooting" particles. Clamp per-step displacement in degrees.
+  float maxStep = 0.03;
+  float m = length(offset);
+  if (m > maxStep) {
+    offset *= maxStep / m;
+  }
   return position + offset;
 }
 
@@ -143,6 +149,15 @@ void main() {
 
   if(!rasterHasValues(bitmapColour)) {
     // Drop when no data in raster.
+    targetPosition.xy = DROP_POSITION;
+    targetPosition.z = 0.0;
+    return;
+  }
+
+  // Don't render very slow flow (noise/background). The B channel stores a
+  // normalized speed magnitude (0..1) that is stable across zoom.
+  float minSpeedNorm = 0.05;
+  if(bitmapColour.b < minSpeedNorm) {
     targetPosition.xy = DROP_POSITION;
     targetPosition.z = 0.0;
     return;

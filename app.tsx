@@ -2,7 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Map } from "react-map-gl/maplibre";
 import DeckGL, { DeckGLRef } from "@deck.gl/react";
-import { WebMercatorViewport, type MapViewState } from "@deck.gl/core";
+import {
+  COORDINATE_SYSTEM,
+  WebMercatorViewport,
+  type MapViewState,
+} from "@deck.gl/core";
 import { BitmapLayer, TextLayer } from "@deck.gl/layers";
 import ParticleLayer from "./particle-layer";
 
@@ -16,6 +20,10 @@ const BOUNDS: [number, number, number, number] = [-30, 57.67, 23.28, 81.5];
 // That demo is tuned around ~zoom 3.8 with speedFactor ~3.
 const FLOW_REFERENCE_ZOOM = 3.8;
 const FLOW_REFERENCE_SPEED_FACTOR = 3;
+
+function clamp(n: number, min: number, max: number) {
+  return Math.min(Math.max(n, min), max);
+}
 
 function generateIsoDates(startIso: string, endIso: string, stepDays: number) {
   const start = new Date(`${startIso}T00:00:00Z`);
@@ -53,13 +61,17 @@ function formatDateLabel(isoDate: string) {
 export default function App() {
   const ref = useRef<DeckGLRef>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
+  const [sourceMode, setSourceMode] = useState<"simulation" | "observation">(
+    "simulation"
+  );
   const [idx, setIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [fps, setFps] = useState(1);
   const [blend, setBlend] = useState(0);
   const [overlay, setOverlay] = useState<
-    "mag" | "deep" | "vort" | "sst" | "sss" | "ice" | "wind" | "topo"
+    "mag" | "deep" | "vort" | "sst" | "sss" | "ice" | "wind" | "wind10" | "topo"
   >("topo");
   const [showParticles, setShowParticles] = useState(true);
   const [showWindFlow, setShowWindFlow] = useState(false);
@@ -71,15 +83,59 @@ export default function App() {
     width: window.innerWidth,
     height: window.innerHeight,
   });
+  const [panelPos, setPanelPos] = useState<{ left: number; top: number } | null>(
+    null
+  );
+  const [tooltip, setTooltip] = useState<{
+    text: string;
+    left: number;
+    top: number;
+  } | null>(null);
+
+  const overlaySupportsObservation =
+    overlay === "mag" ||
+    overlay === "sst" ||
+    overlay === "sss" ||
+    overlay === "ice" ||
+    overlay === "wind10";
+
+  const dataOptions = useMemo(() => {
+    const all = [
+      { id: "topo", label: "Topo" },
+      { id: "mag", label: "Surface Currents" },
+      { id: "deep", label: "Deep Currents" },
+      { id: "vort", label: "Vorticity" },
+      { id: "sst", label: "SST" },
+      { id: "sss", label: "SSS" },
+      { id: "ice", label: "Ice" },
+      { id: "wind", label: "Wind Stress" },
+      { id: "wind10", label: "10m Wind" },
+    ] as const;
+
+    if (sourceMode === "observation") {
+      return all.filter(
+        (o) =>
+          o.id === "topo" ||
+          o.id === "mag" ||
+          o.id === "sst" ||
+          o.id === "sss" ||
+          o.id === "ice" ||
+          o.id === "wind10"
+      );
+    }
+    return all.filter((o) => o.id !== "wind10");
+  }, [sourceMode]);
 
   const frames = useMemo(() => {
     const base = import.meta.env.BASE_URL;
-    return DATES.map((d) => `${base}uv_${d}.png`);
-  }, []);
+    const folder = sourceMode === "observation" ? "observation/" : "";
+    return DATES.map((d) => `${base}${folder}uv_${d}.png`);
+  }, [overlay, sourceMode]);
   const windFrames = useMemo(() => {
     const base = import.meta.env.BASE_URL;
-    return DATES.map((d) => `${base}wind_${d}.png`);
-  }, []);
+    const folder = sourceMode === "observation" ? "observation/" : "";
+    return DATES.map((d) => `${base}${folder}wind_${d}.png`);
+  }, [sourceMode]);
   const deepFrames = useMemo(() => {
     const base = import.meta.env.BASE_URL;
     return DATES.map((d) => `${base}uvdeep_${d}.png`);
@@ -101,20 +157,37 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (panelPos) return;
+    const el = panelRef.current;
+    if (!el) return;
+    const id = window.requestAnimationFrame(() => {
+      const rect = el.getBoundingClientRect();
+      setPanelPos({
+        left: 12,
+        top: Math.max(12, window.innerHeight - rect.height - 12),
+      });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [panelPos]);
+
+  useEffect(() => {
     setPlaying(movieOn);
   }, [movieOn]);
 
   useEffect(() => {
-    setShowParticles(!(overlay === "deep" || overlay === "wind"));
+    setShowParticles(
+      !(overlay === "deep" || overlay === "wind" || overlay === "wind10")
+    );
   }, [overlay]);
 
   useEffect(() => {
-    if (overlay === "wind") {
+    if (overlay === "wind" || overlay === "wind10") {
       setShowWindFlow(true);
     }
   }, [overlay]);
 
-  const surfaceFlowToggleEnabled = overlay !== "deep" && overlay !== "wind";
+  const surfaceFlowToggleEnabled =
+    overlay !== "deep" && overlay !== "wind" && overlay !== "wind10";
   const windFlowToggleEnabled = true;
 
   useEffect(() => {
@@ -166,22 +239,28 @@ export default function App() {
   const windImageNextUrl = windFrames[nextIdx];
 
   const overlayFrames = useMemo(() => {
-    const base = import.meta.env.BASE_URL;
+    const base =
+      import.meta.env.BASE_URL +
+      (sourceMode === "observation" && overlaySupportsObservation
+        ? "observation/"
+        : "");
     if (overlay === "topo") {
-      return DATES.map(() => `${base}topography.png`);
+      return DATES.map(() => `${import.meta.env.BASE_URL}topography.png`);
     }
-    const prefix =
-      overlay === "ice"
-        ? "SI"
-        : overlay === "wind"
-          ? "windmag"
-          : overlay === "deep"
-            ? "magdeep"
-            : overlay === "vort"
-              ? "Ro"
-              : overlay;
+	    const prefix =
+	      overlay === "ice"
+	        ? "SI"
+	        : overlay === "wind"
+	          ? "windmag"
+	          : overlay === "wind10"
+	            ? "windmag"
+	          : overlay === "deep"
+	            ? "magdeep"
+	            : overlay === "vort"
+	              ? "Ro"
+	              : overlay;
     return DATES.map((d) => `${base}${prefix}_${d}.png`);
-  }, [overlay]);
+  }, [overlay, overlaySupportsObservation, sourceMode]);
 
   const magUrl = overlayFrames[idx];
   const magNextUrl = overlayFrames[nextIdx];
@@ -243,6 +322,14 @@ export default function App() {
           // cmocean.cm.amp
           "linear-gradient(90deg, #F1EDEC, #E2C7BF, #D7A291, #CC7E64, #C0583B, #AF3024, #901029, #650F24, #3C0912)",
       },
+      wind10: {
+        scaleLabel: "Scale (m/s):",
+        minLabel: "low",
+        maxLabel: "high",
+        gradient:
+          // cmocean.cm.amp
+          "linear-gradient(90deg, #F1EDEC, #E2C7BF, #D7A291, #CC7E64, #C0583B, #AF3024, #901029, #650F24, #3C0912)",
+      },
       topo: {
         scaleLabel: "Depth (m):",
         minLabel: "50",
@@ -269,12 +356,30 @@ export default function App() {
     return { longitude, latitude, zoom };
   }, [viewportSize.height, viewportSize.width]);
 
+  const [viewState, setViewState] = useState<MapViewState>(initialViewState);
+
+  useEffect(() => {
+    // Re-fit to bounds when viewport size changes (e.g. mobile rotation),
+    // but otherwise let the user pan/zoom without snapping back.
+    setViewState((prev) => ({
+      ...prev,
+      ...initialViewState,
+    }));
+  }, [initialViewState.latitude, initialViewState.longitude, initialViewState.zoom]);
+
   const flowSpeedFactor = useMemo(() => {
     return (
       FLOW_REFERENCE_SPEED_FACTOR *
-      2 ** (initialViewState.zoom - FLOW_REFERENCE_ZOOM)
+      2 ** (viewState.zoom - FLOW_REFERENCE_ZOOM)
     );
-  }, [initialViewState.zoom]);
+  }, [viewState.zoom]);
+
+  const particleCount = useMemo(() => {
+    const area = viewportSize.width * viewportSize.height;
+    const referenceArea = 1280 * 720;
+    const scaled = Math.round((12000 * area) / referenceArea);
+    return clamp(scaled, 6000, 30000);
+  }, [viewportSize.height, viewportSize.width]);
 
   const layers = [
     new BitmapLayer({
@@ -282,12 +387,20 @@ export default function App() {
       image: magUrl,
       bounds: BOUNDS,
       opacity: magOpacity * (1 - blend),
+      _imageCoordinateSystem:
+        sourceMode === "observation" && overlaySupportsObservation
+          ? COORDINATE_SYSTEM.LNGLAT
+          : COORDINATE_SYSTEM.DEFAULT,
     }),
     new BitmapLayer({
       id: "magnitude-raster-next",
       image: magNextUrl,
       bounds: BOUNDS,
       opacity: magOpacity * blend,
+      _imageCoordinateSystem:
+        sourceMode === "observation" && overlaySupportsObservation
+          ? COORDINATE_SYSTEM.LNGLAT
+          : COORDINATE_SYSTEM.DEFAULT,
     }),
     ...(surfaceFlowToggleEnabled && showParticles
       ? [
@@ -298,7 +411,7 @@ export default function App() {
             blend,
             imageUnscale: [-128, 127],
             bounds: BOUNDS,
-            numParticles: 12000,
+            numParticles: particleCount,
             maxAge: 45,
             speedFactor: flowSpeedFactor,
             color: [255, 255, 255, 255],
@@ -317,7 +430,7 @@ export default function App() {
             blend,
             imageUnscale: [-128, 127],
             bounds: BOUNDS,
-            numParticles: 12000,
+            numParticles: particleCount,
             maxAge: 45,
             speedFactor: flowSpeedFactor,
             color: [255, 255, 255, 255],
@@ -336,7 +449,7 @@ export default function App() {
             blend,
             imageUnscale: [-128, 127],
             bounds: BOUNDS,
-            numParticles: 12000,
+            numParticles: particleCount,
             maxAge: 45,
             speedFactor: flowSpeedFactor,
             color: [255, 255, 255, 255],
@@ -378,59 +491,224 @@ export default function App() {
     }),
   ];
 
-	  return (
-	    <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
-	      <audio
-	        ref={audioRef}
-	        src={`${import.meta.env.BASE_URL}Dmitri Shostakovich Jazz Suite Waltz No.2.mp3`}
-	        preload="auto"
+		  return (
+		    <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
+		      {tooltip && (
+		        <div
+		          style={{
+		            position: "fixed",
+		            left: tooltip.left + 140,
+		            top: tooltip.top,
+		            transform: "translate(-50%, -100%)",
+		            background: "rgba(0,0,0,0.85)",
+		            color: "white",
+		            border: "1px solid rgba(255,255,255,0.18)",
+		            borderRadius: 10,
+		            padding: "8px 10px",
+		            fontSize: 12,
+		            lineHeight: 1.25,
+		            whiteSpace: "pre-line",
+		            maxWidth: 360,
+		            pointerEvents: "none",
+		            zIndex: 1000,
+		          }}
+		        >
+		          {tooltip.text}
+		        </div>
+		      )}
+
+		      <audio
+		        ref={audioRef}
+		        src={`${import.meta.env.BASE_URL}Dmitri Shostakovich Jazz Suite Waltz No.2.mp3`}
+		        preload="auto"
 	        loop
 	      />
 
       <DeckGL
         ref={ref}
         layers={layers}
-        initialViewState={initialViewState}
+        viewState={viewState}
+        onViewStateChange={({ viewState: next }) =>
+          setViewState(next as MapViewState)
+        }
         controller={true}
 	      >
 	        <Map reuseMaps mapStyle={MAP_STYLE} />
 	      </DeckGL>
 
-		      {/* Bottom-left control + legend */}
-		      <div
-	        style={{
-	          position: "absolute",
-          left: 12,
-          bottom: 12,
-          width: 480,
-          padding: 10,
-          borderRadius: 10,
-          background: "rgba(0,0,0,0.55)",
-          color: "white",
+			      {/* Bottom-left control + legend */}
+			      <div
+		        ref={panelRef}
+		        style={{
+		          position: "absolute",
+	          left: panelPos?.left ?? 12,
+	          ...(panelPos ? { top: panelPos.top } : { bottom: 12 }),
+	          width: 480,
+	          padding: 10,
+	          borderRadius: 10,
+	          background: "rgba(0,0,0,0.55)",
+	          color: "white",
           fontFamily: "system-ui, sans-serif",
           display: "flex",
           flexDirection: "column",
           gap: 6,
-	          pointerEvents: "auto",
-	        }}
-	      >
-	        <div style={{ fontSize: 12, opacity: 0.75 }}>
-	          Source: MITgcm simulation (Demo)
+		          pointerEvents: "auto",
+		        }}
+		      >
+		        <div
+		          onPointerDown={(e) => {
+		            const el = panelRef.current;
+		            if (!el) return;
+		            const rect = el.getBoundingClientRect();
+		            const startOffsetX = e.clientX - rect.left;
+		            const startOffsetY = e.clientY - rect.top;
+
+		            const onMove = (ev: PointerEvent) => {
+		              const el2 = panelRef.current;
+		              if (!el2) return;
+		              const rect2 = el2.getBoundingClientRect();
+		              const nextLeft = ev.clientX - startOffsetX;
+		              const nextTop = ev.clientY - startOffsetY;
+		              const maxLeft = Math.max(12, window.innerWidth - rect2.width - 12);
+		              const maxTop = Math.max(12, window.innerHeight - rect2.height - 12);
+		              setPanelPos({
+		                left: Math.min(Math.max(12, nextLeft), maxLeft),
+		                top: Math.min(Math.max(12, nextTop), maxTop),
+		              });
+		            };
+
+		            const onUp = () => {
+		              window.removeEventListener("pointermove", onMove);
+		              window.removeEventListener("pointerup", onUp);
+		              window.removeEventListener("pointercancel", onUp);
+		            };
+
+		            window.addEventListener("pointermove", onMove);
+		            window.addEventListener("pointerup", onUp);
+		            window.addEventListener("pointercancel", onUp);
+		          }}
+		          onDoubleClick={() => setPanelPos(null)}
+		          title="Drag to move (double-click to reset)"
+		          style={{
+		            display: "flex",
+		            alignItems: "center",
+		            justifyContent: "space-between",
+		            userSelect: "none",
+		            cursor: "grab",
+		            padding: "2px 0",
+		          }}
+		        >
+		          <div style={{ fontSize: 12, opacity: 0.7 }}>Control Panel</div>
+		          <div style={{ fontSize: 12, opacity: 0.4 }}>⋮⋮</div>
+		        </div>
+
+		        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+		          <div style={{ fontSize: 12, opacity: 0.75 }}>Source:</div>
+		          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+	            <button
+	              type="button"
+	              onClick={() => {
+	                setSourceMode("simulation");
+	                if (overlay === "wind10") setOverlay("wind");
+	              }}
+	              onMouseEnter={(e) => {
+	                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+	                setTooltip({
+	                  text: "A high resolution ocean ice coupled model using MITgcm",
+	                  left: rect.left + rect.width / 2,
+	                  top: rect.top - 8,
+	                });
+	              }}
+	              onMouseLeave={() => setTooltip(null)}
+	              onFocus={(e) => {
+	                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+	                setTooltip({
+	                  text: "A high resolution ocean ice coupled model using MITgcm",
+	                  left: rect.left + rect.width / 2,
+	                  top: rect.top - 8,
+	                });
+	              }}
+	              onBlur={() => setTooltip(null)}
+	              style={{
+	                padding: "2px 8px",
+	                borderRadius: 999,
+	                border: "1px solid rgba(255,255,255,0.25)",
+	                background:
+	                  sourceMode === "simulation"
+	                    ? "rgba(255,255,255,0.16)"
+	                    : "transparent",
+	                color:
+	                  sourceMode === "simulation"
+	                    ? "white"
+	                    : "rgba(255,255,255,0.75)",
+	                cursor: "pointer",
+	                fontSize: 12,
+	                fontWeight: sourceMode === "simulation" ? 700 : 500,
+	              }}
+	            >
+	              Model
+	            </button>
+	            <button
+		              type="button"
+		              onClick={() => {
+		                setSourceMode("observation");
+		                if (
+		                  overlay !== "topo" &&
+		                  overlay !== "mag" &&
+		                  overlay !== "sst" &&
+		                  overlay !== "sss" &&
+		                  overlay !== "ice" &&
+		                  overlay !== "wind10"
+		                ) {
+		                  setOverlay("mag");
+		                }
+		              }}
+	              onMouseEnter={(e) => {
+	                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+	                setTooltip({
+	                  text:
+	                    "Gridded prodcuts, e.g, Ssalto/Duacs, OSTIA SST and Ice, ERA5",
+	                  left: rect.left + rect.width / 2,
+	                  top: rect.top - 8,
+	                });
+	              }}
+	              onMouseLeave={() => setTooltip(null)}
+	              onFocus={(e) => {
+	                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+	                setTooltip({
+	                  text:
+	                    "Gridded prodcuts, e.g, Ssalto/Duacs, OSTIA SST and Ice, ERA5",
+	                  left: rect.left + rect.width / 2,
+	                  top: rect.top - 8,
+	                });
+	              }}
+	              onBlur={() => setTooltip(null)}
+	              style={{
+	                padding: "2px 8px",
+	                borderRadius: 999,
+	                border: "1px solid rgba(255,255,255,0.25)",
+	                background:
+	                  sourceMode === "observation"
+	                    ? "rgba(255,255,255,0.16)"
+	                    : "transparent",
+	                color:
+	                  sourceMode === "observation"
+	                    ? "white"
+	                    : "rgba(255,255,255,0.75)",
+	                cursor: "pointer",
+	                fontSize: 12,
+	                fontWeight: sourceMode === "observation" ? 700 : 500,
+	              }}
+	            >
+	              Observation
+	            </button>
+	          </div>
 	        </div>
 
 	        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
 	          <div style={{ fontSize: 12, opacity: 0.9 }}>Data:</div>
 		          <div style={{ display: "flex", gap: 8, flexWrap: "nowrap" }}>
-		            {[
-		              { id: "topo", label: "Topo" },
-		              { id: "mag", label: "Surface Currents" },
-		              { id: "deep", label: "Deep Currents" },
-		              { id: "vort", label: "Vorticity" },
-		              { id: "sst", label: "SST" },
-		              { id: "sss", label: "SSS" },
-		              { id: "ice", label: "Ice" },
-              { id: "wind", label: "Wind Stress" },
-            ].map((opt) => (
+		            {dataOptions.map((opt) => (
               <button
                 key={opt.id}
                 onClick={() => setOverlay(opt.id as typeof overlay)}
@@ -540,7 +818,7 @@ export default function App() {
 	              }}
 	            />
 	          </button>
-	          <div style={{ fontSize: 12, opacity: 0.9 }}>Wind Flow</div>
+	          <div style={{ fontSize: 12, opacity: 0.9 }}>Wind</div>
 
 	          <button
 	            type="button"
@@ -766,7 +1044,7 @@ export default function App() {
             d.jian[at]uea.ac.uk
           </span>
           <span style={{ fontSize: 12, opacity: 0.6 }}>
-            inspired by earth.nullschool.net
+            (© DJ, 2026)
           </span>
         </div>
       </div>

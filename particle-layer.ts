@@ -477,7 +477,9 @@ export default class ParticleLayer<
       numParticles,
       maxAge,
       speedFactor: currentSpeedFactor,
-      time: timeline.getTime(),
+      // Use a stable step counter (not milliseconds) so shader drop logic is frame-based
+      // and doesn't cause excessive respawning/jitter under varying render timing.
+      time: frame,
       seed: Math.random(),
     };
     transform.model.shaderInputs.setProps({ bitmap: moduleUniforms });
