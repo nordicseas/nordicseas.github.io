@@ -87,6 +87,25 @@ export default function App() {
   const [panelPos, setPanelPos] = useState<{ left: number; top: number } | null>(
     null
   );
+  const OPEN_BUTTON_INSET = { dx: 8, dy: -48 };
+  const [openButtonOffset, setOpenButtonOffset] = useState({ dx: 0, dy: 0 });
+  const openButtonDragRef = useRef<{
+    dragging: boolean;
+    pointerId: number | null;
+    startX: number;
+    startY: number;
+    startOffsetX: number;
+    startOffsetY: number;
+    moved: boolean;
+  }>({
+    dragging: false,
+    pointerId: null,
+    startX: 0,
+    startY: 0,
+    startOffsetX: 0,
+    startOffsetY: 0,
+    moved: false,
+  });
   const [tooltip, setTooltip] = useState<{
     text: string;
     left: number;
@@ -383,6 +402,38 @@ export default function App() {
     return clamp(scaled, 6000, 30000);
   }, [viewportSize.height, viewportSize.width]);
 
+  const openButtonAnchorPx = useMemo(() => {
+    const viewport = new WebMercatorViewport({
+      width: viewportSize.width,
+      height: viewportSize.height,
+      longitude: viewState.longitude,
+      latitude: viewState.latitude,
+      zoom: viewState.zoom,
+      bearing: viewState.bearing ?? 0,
+      pitch: viewState.pitch ?? 0,
+    });
+    const [x, y] = viewport.project([BOUNDS[0], BOUNDS[1]]);
+    return { x, y };
+  }, [
+    viewportSize.height,
+    viewportSize.width,
+    viewState.bearing,
+    viewState.latitude,
+    viewState.longitude,
+    viewState.pitch,
+    viewState.zoom,
+  ]);
+
+  const openButtonPos = useMemo(() => {
+    const buttonSize = 40;
+    const rawLeft = openButtonAnchorPx.x + OPEN_BUTTON_INSET.dx + openButtonOffset.dx;
+    const rawTop = openButtonAnchorPx.y + OPEN_BUTTON_INSET.dy + openButtonOffset.dy;
+    return {
+      left: clamp(rawLeft, 12, window.innerWidth - buttonSize - 12),
+      top: clamp(rawTop, 12, window.innerHeight - buttonSize - 12),
+    };
+  }, [OPEN_BUTTON_INSET.dx, OPEN_BUTTON_INSET.dy, openButtonAnchorPx.x, openButtonAnchorPx.y, openButtonOffset.dx, openButtonOffset.dy]);
+
   const layers = [
     new BitmapLayer({
       id: "magnitude-raster",
@@ -538,32 +589,95 @@ export default function App() {
 	        <Map reuseMaps mapStyle={MAP_STYLE} />
 	      </DeckGL>
 
-        {!panelOpen && (
-          <button
-            type="button"
-            onClick={() => setPanelOpen(true)}
-            title="Open control panel"
-            style={{
-              position: "absolute",
-              left: 12,
-              bottom: 12,
-              width: 40,
-              height: 40,
-              borderRadius: 10,
-              border: "1px solid rgba(255,255,255,0.25)",
-              background: "rgba(0,0,0,0.55)",
-              color: "white",
-              cursor: "pointer",
-              pointerEvents: "auto",
-              display: "grid",
-              placeItems: "center",
-              fontSize: 18,
-              lineHeight: 1,
-            }}
-          >
-            ☰
-          </button>
-        )}
+	        {!panelOpen && (
+	          <button
+	            type="button"
+	            title="Open control panel"
+	            onPointerDown={(e) => {
+	              const drag = openButtonDragRef.current;
+	              drag.dragging = true;
+	              drag.pointerId = e.pointerId;
+	              drag.startX = e.clientX;
+	              drag.startY = e.clientY;
+	              drag.startOffsetX = openButtonOffset.dx;
+	              drag.startOffsetY = openButtonOffset.dy;
+	              drag.moved = false;
+	              try {
+	                (e.currentTarget as HTMLButtonElement).setPointerCapture(
+	                  e.pointerId
+	                );
+	              } catch {
+	                // ignore
+	              }
+	            }}
+	            onPointerMove={(e) => {
+	              const drag = openButtonDragRef.current;
+	              if (!drag.dragging) return;
+	              if (drag.pointerId !== null && e.pointerId !== drag.pointerId)
+	                return;
+	              const dx = e.clientX - drag.startX;
+	              const dy = e.clientY - drag.startY;
+	              if (!drag.moved && Math.hypot(dx, dy) > 4) {
+	                drag.moved = true;
+	              }
+	              if (!drag.moved) return;
+	              const buttonSize = 40;
+	              const nextLeft = openButtonAnchorPx.x + OPEN_BUTTON_INSET.dx + (drag.startOffsetX + dx);
+	              const nextTop = openButtonAnchorPx.y + OPEN_BUTTON_INSET.dy + (drag.startOffsetY + dy);
+	              const clampedLeft = clamp(
+	                nextLeft,
+	                12,
+	                window.innerWidth - buttonSize - 12
+	              );
+	              const clampedTop = clamp(
+	                nextTop,
+	                12,
+	                window.innerHeight - buttonSize - 12
+	              );
+	              setOpenButtonOffset({
+	                dx: clampedLeft - (openButtonAnchorPx.x + OPEN_BUTTON_INSET.dx),
+	                dy: clampedTop - (openButtonAnchorPx.y + OPEN_BUTTON_INSET.dy),
+	              });
+	            }}
+	            onPointerUp={(e) => {
+	              const drag = openButtonDragRef.current;
+	              if (!drag.dragging) return;
+	              if (drag.pointerId !== null && e.pointerId !== drag.pointerId)
+	                return;
+	              const shouldOpen = !drag.moved;
+	              drag.dragging = false;
+	              drag.pointerId = null;
+	              drag.moved = false;
+	              if (shouldOpen) setPanelOpen(true);
+	            }}
+	            onPointerCancel={() => {
+	              const drag = openButtonDragRef.current;
+	              drag.dragging = false;
+	              drag.pointerId = null;
+	              drag.moved = false;
+	            }}
+	            style={{
+	              position: "absolute",
+	              left: openButtonPos.left,
+	              top: openButtonPos.top,
+	              width: 40,
+	              height: 40,
+	              borderRadius: 10,
+	              border: "1px solid rgba(255,255,255,0.25)",
+	              background: "rgba(0,0,0,0.55)",
+	              color: "white",
+	              cursor: "pointer",
+	              pointerEvents: "auto",
+	              display: "grid",
+	              placeItems: "center",
+	              fontSize: 18,
+	              lineHeight: 1,
+	              touchAction: "none",
+	            }}
+	          >
+	            ☰
+	          </button>
+	        )}
 
 		      {/* Bottom-left control + legend */}
 		      {panelOpen && (
