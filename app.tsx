@@ -63,6 +63,7 @@ export default function App() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
 
+  const [panelOpen, setPanelOpen] = useState(false);
   const [sourceMode, setSourceMode] = useState<"simulation" | "observation">(
     "simulation"
   );
@@ -157,6 +158,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!panelOpen) return;
     if (panelPos) return;
     const el = panelRef.current;
     if (!el) return;
@@ -168,7 +170,7 @@ export default function App() {
       });
     });
     return () => window.cancelAnimationFrame(id);
-  }, [panelPos]);
+  }, [panelOpen, panelPos]);
 
   useEffect(() => {
     setPlaying(movieOn);
@@ -377,7 +379,7 @@ export default function App() {
   const particleCount = useMemo(() => {
     const area = viewportSize.width * viewportSize.height;
     const referenceArea = 1280 * 720;
-    const scaled = Math.round((12000 * area) / referenceArea);
+    const scaled = Math.round((15000 * area) / referenceArea);
     return clamp(scaled, 6000, 30000);
   }, [viewportSize.height, viewportSize.width]);
 
@@ -412,7 +414,7 @@ export default function App() {
             imageUnscale: [-128, 127],
             bounds: BOUNDS,
             numParticles: particleCount,
-            maxAge: 45,
+            maxAge: 50,
             speedFactor: flowSpeedFactor,
             color: [255, 255, 255, 255],
             colorScheme: "nullschool",
@@ -536,8 +538,36 @@ export default function App() {
 	        <Map reuseMaps mapStyle={MAP_STYLE} />
 	      </DeckGL>
 
-			      {/* Bottom-left control + legend */}
-			      <div
+        {!panelOpen && (
+          <button
+            type="button"
+            onClick={() => setPanelOpen(true)}
+            title="Open control panel"
+            style={{
+              position: "absolute",
+              left: 12,
+              bottom: 12,
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              border: "1px solid rgba(255,255,255,0.25)",
+              background: "rgba(0,0,0,0.55)",
+              color: "white",
+              cursor: "pointer",
+              pointerEvents: "auto",
+              display: "grid",
+              placeItems: "center",
+              fontSize: 18,
+              lineHeight: 1,
+            }}
+          >
+            ☰
+          </button>
+        )}
+
+		      {/* Bottom-left control + legend */}
+		      {panelOpen && (
+		      <div
 		        ref={panelRef}
 		        style={{
 		          position: "absolute",
@@ -599,7 +629,28 @@ export default function App() {
 		          }}
 		        >
 		          <div style={{ fontSize: 12, opacity: 0.7 }}>Control Panel</div>
-		          <div style={{ fontSize: 12, opacity: 0.4 }}>⋮⋮</div>
+		          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+		            <button
+		              type="button"
+		              onClick={() => {
+		                setTooltip(null);
+		                setPanelOpen(false);
+		              }}
+		              title="Close"
+		              style={{
+		                border: "none",
+		                background: "transparent",
+		                color: "rgba(255,255,255,0.8)",
+		                cursor: "pointer",
+		                fontSize: 14,
+		                lineHeight: 1,
+		                padding: 0,
+		              }}
+		            >
+		              ×
+		            </button>
+		            <div style={{ fontSize: 12, opacity: 0.4 }}>⋮⋮</div>
+		          </div>
 		        </div>
 
 		        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1048,6 +1099,7 @@ export default function App() {
           </span>
         </div>
       </div>
+      )}
     </div>
   );
 }
