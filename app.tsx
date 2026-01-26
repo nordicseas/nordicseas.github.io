@@ -434,6 +434,8 @@ export default function App() {
     };
   }, [OPEN_BUTTON_INSET.dx, OPEN_BUTTON_INSET.dy, openButtonAnchorPx.x, openButtonAnchorPx.y, openButtonOffset.dx, openButtonOffset.dy]);
 
+  const isNarrowUi = viewportSize.width < 520;
+
   const layers = [
     new BitmapLayer({
       id: "magnitude-raster",
@@ -680,20 +682,21 @@ export default function App() {
 	        )}
 
 		      {/* Bottom-left control + legend */}
-		      {panelOpen && (
-		      <div
-		        ref={panelRef}
-		        style={{
-		          position: "absolute",
-	          left: panelPos?.left ?? 12,
-	          ...(panelPos ? { top: panelPos.top } : { bottom: 12 }),
-	          width: 480,
-	          padding: 10,
-	          borderRadius: 10,
-	          background: "rgba(0,0,0,0.55)",
-	          color: "white",
-          fontFamily: "system-ui, sans-serif",
-          display: "flex",
+			      {panelOpen && (
+			      <div
+			        ref={panelRef}
+			        style={{
+			          position: "absolute",
+		          left: panelPos?.left ?? 12,
+		          ...(panelPos ? { top: panelPos.top } : { bottom: 12 }),
+		          width: Math.min(480, Math.max(260, viewportSize.width - 24)),
+		          padding: isNarrowUi ? 8 : 10,
+		          paddingBottom: `calc(${isNarrowUi ? 8 : 10}px + env(safe-area-inset-bottom))`,
+		          borderRadius: 10,
+		          background: "rgba(0,0,0,0.55)",
+		          color: "white",
+	          fontFamily: "system-ui, sans-serif",
+	          display: "flex",
           flexDirection: "column",
           gap: 6,
 		          pointerEvents: "auto",
@@ -870,10 +873,17 @@ export default function App() {
 	          </div>
 	        </div>
 
-	        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-	          <div style={{ fontSize: 12, opacity: 0.9 }}>Data:</div>
-		          <div style={{ display: "flex", gap: 8, flexWrap: "nowrap" }}>
-		            {dataOptions.map((opt) => (
+		        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+		          <div style={{ fontSize: 12, opacity: 0.9 }}>Data:</div>
+			          <div
+			            style={{
+			              display: "flex",
+			              gap: 8,
+			              flexWrap: isNarrowUi ? "wrap" : "nowrap",
+			              rowGap: 4,
+			            }}
+			          >
+			            {dataOptions.map((opt) => (
               <button
                 key={opt.id}
                 onClick={() => setOverlay(opt.id as typeof overlay)}
