@@ -11,7 +11,7 @@ import { BitmapLayer, TextLayer } from "@deck.gl/layers";
 import ParticleLayer from "./particle-layer";
 
 const MAP_STYLE =
-  "https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json";
+  `${import.meta.env.BASE_URL}styles/openfreemap-dark-en.json`;
 
 // lon/lat bounds for your uv_*.png
 const BOUNDS: [number, number, number, number] = [-30, 57.67, 23.28, 81.5];
@@ -20,6 +20,12 @@ const BOUNDS: [number, number, number, number] = [-30, 57.67, 23.28, 81.5];
 // That demo is tuned around ~zoom 3.8 with speedFactor ~3.
 const FLOW_REFERENCE_ZOOM = 3.8;
 const FLOW_REFERENCE_SPEED_FACTOR = 3;
+
+const SEA_LABELS: Array<{ name: string; position: [number, number] }> = [
+  { name: "Greenland Sea", position: [-2.0, 74.0] },
+  { name: "Norwegian Sea", position: [4.0, 67.5] },
+  { name: "Iceland Sea", position: [-12.5, 68.8] },
+];
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(Math.max(n, min), max);
@@ -515,34 +521,20 @@ export default function App() {
         ]
       : []),
     new TextLayer({
-      id: "geo-labels",
-      data: [
-        { name: "Iceland", position: [-19.0, 64.9] },
-        { name: "Greenland", position: [-40.0, 70.0], size: 16, weight: 500 },
-        { name: "Svalbard", position: [15.0, 78.5] },
-        { name: "Bergen,\nNorway", position: [7, 60.39] },
-        { name: "UK", position: [-5.0, 58.0] },
-      ],
+      id: "sea-labels",
+      data: SEA_LABELS,
       getText: (d) => d.name,
       getPosition: (d) => d.position,
-      getSize: (d) => d.size ?? 12,
+      getSize: () => clamp(10 + (viewState.zoom - 2) * 2, 10, 16),
       sizeUnits: "pixels",
-      getColor: [255, 255, 255, 220],
+      getColor: [255, 255, 255, 200],
       fontFamily: "system-ui, sans-serif",
-      getFontWeight: (d) => d.weight ?? 700,
+      fontWeight: 600,
+      getTextAnchor: "middle",
+      getAlignmentBaseline: "center",
       billboard: true,
-    }),
-    new TextLayer({
-      id: "geo-markers",
-      data: [{ position: [7, 60.39], label: "o" }],
-      getText: (d) => d.label,
-      getPosition: (d) => d.position,
-      getSize: 12,
-      sizeUnits: "pixels",
-      getColor: [255, 255, 255, 220],
-      fontFamily: "system-ui, sans-serif",
-      fontWeight: 700,
-      billboard: true,
+      outlineWidth: 3,
+      outlineColor: [0, 0, 0, 180],
     }),
   ];
 
