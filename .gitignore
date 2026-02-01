@@ -3,3 +3,4 @@ dist/
 vite.config.js
 .DS_Store
 observation/.ipynb_checkpoints/
+swot/.ipynb_checkpoints/

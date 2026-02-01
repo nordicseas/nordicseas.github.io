@@ -43,7 +43,8 @@ function generateIsoDates(startIso: string, endIso: string, stepDays: number) {
 }
 
 // Must match filenames in `public/` (e.g. `uv_YYYY-MM-DD.png`).
-const DATES = generateIsoDates("2010-01-04", "2011-12-30", 5);
+const MODEL_DATES = generateIsoDates("2010-01-04", "2011-12-30", 5);
+const SWOT_DATES = generateIsoDates("2023-12-14", "2025-09-19", 21);
 
 function formatDateLabel(isoDate: string) {
   const [y, m, d] = isoDate.split("-").map(Number);
@@ -70,7 +71,9 @@ export default function App() {
   const panelRef = useRef<HTMLDivElement | null>(null);
 
   const [panelOpen, setPanelOpen] = useState(false);
-  const [sourceMode, setSourceMode] = useState<"simulation" | "observation">(
+  const [sourceMode, setSourceMode] = useState<
+    "simulation" | "observation" | "swot"
+  >(
     "simulation"
   );
   const [idx, setIdx] = useState(0);
@@ -118,12 +121,50 @@ export default function App() {
     top: number;
   } | null>(null);
 
+  const [swotIndex, setSwotIndex] = useState<{
+    uv_dates: string[];
+    mag_dates: string[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (sourceMode !== "swot") return;
+    const base = import.meta.env.BASE_URL;
+    let cancelled = false;
+    fetch(`${base}swot/manifest.json`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((json) => {
+        if (cancelled) return;
+        const uv_dates = Array.isArray(json?.uv_dates) ? json.uv_dates : [];
+        const mag_dates = Array.isArray(json?.mag_dates) ? json.mag_dates : [];
+        setSwotIndex({ uv_dates, mag_dates });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSwotIndex(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sourceMode]);
+
+  const dates =
+    sourceMode === "swot"
+      ? swotIndex?.uv_dates?.length
+        ? swotIndex.uv_dates
+        : SWOT_DATES
+      : MODEL_DATES;
+
   const overlaySupportsObservation =
     overlay === "mag" ||
     overlay === "sst" ||
     overlay === "sss" ||
     overlay === "ice" ||
     overlay === "wind10";
+
+  const overlaySupportsSwot = overlay === "mag";
+  const overlayUsesAltRasterSource =
+    (sourceMode === "observation" && overlaySupportsObservation) ||
+    (sourceMode === "swot" && overlaySupportsSwot);
 
   const dataOptions = useMemo(() => {
     const all = [
@@ -149,22 +190,29 @@ export default function App() {
           o.id === "wind10"
       );
     }
+    if (sourceMode === "swot") {
+      return all.filter((o) => o.id === "topo" || o.id === "mag");
+    }
     return all.filter((o) => o.id !== "wind10");
   }, [sourceMode]);
 
   const frames = useMemo(() => {
     const base = import.meta.env.BASE_URL;
+    if (sourceMode === "swot") {
+      return dates.map((d) => `${base}swot/swot_uv_${d}.png`);
+    }
     const folder = sourceMode === "observation" ? "observation/" : "";
-    return DATES.map((d) => `${base}${folder}uv_${d}.png`);
-  }, [overlay, sourceMode]);
+    return dates.map((d) => `${base}${folder}uv_${d}.png`);
+  }, [dates, sourceMode]);
   const windFrames = useMemo(() => {
     const base = import.meta.env.BASE_URL;
+    if (sourceMode === "swot") return [];
     const folder = sourceMode === "observation" ? "observation/" : "";
-    return DATES.map((d) => `${base}${folder}wind_${d}.png`);
-  }, [sourceMode]);
+    return dates.map((d) => `${base}${folder}wind_${d}.png`);
+  }, [dates, sourceMode]);
   const deepFrames = useMemo(() => {
     const base = import.meta.env.BASE_URL;
-    return DATES.map((d) => `${base}uvdeep_${d}.png`);
+    return MODEL_DATES.map((d) => `${base}uvdeep_${d}.png`);
   }, []);
 
   useEffect(() => {
@@ -215,7 +263,7 @@ export default function App() {
 
   const surfaceFlowToggleEnabled =
     overlay !== "deep" && overlay !== "wind" && overlay !== "wind10";
-  const windFlowToggleEnabled = true;
+  const windFlowToggleEnabled = sourceMode !== "swot" && windFrames.length > 0;
 
   useEffect(() => {
     if (!playing) {
@@ -256,40 +304,91 @@ export default function App() {
     }
   }, [audioOn]);
 
-  const currentDate = DATES[idx];
-  const nextIdx = (idx + 1) % frames.length;
-  const surfaceImageUrl = frames[idx];
+  useEffect(() => {
+    if (frames.length === 0) return;
+    if (idx >= frames.length) {
+      setIdx(0);
+      setBlend(0);
+    }
+  }, [frames.length, idx]);
+
+  useEffect(() => {
+    if (sourceMode === "swot") {
+      setShowWindFlow(false);
+      if (overlay !== "topo" && overlay !== "mag") {
+        setOverlay("mag");
+      }
+    }
+    if (sourceMode !== "observation" && overlay === "wind10") {
+      setOverlay("wind");
+    }
+  }, [overlay, sourceMode]);
+
+  const safeIdx = frames.length > 0 ? idx % frames.length : 0;
+  const nextIdx = frames.length > 0 ? (safeIdx + 1) % frames.length : 0;
+  const currentDate = dates[safeIdx];
+  const nextDateForLabel =
+    sourceMode === "swot"
+      ? dates[Math.min(safeIdx + 1, Math.max(dates.length - 1, 0))]
+      : dates[nextIdx];
+  const dateLabel =
+    sourceMode === "swot" && nextDateForLabel
+      ? `${formatDateLabel(currentDate)} to ${formatDateLabel(nextDateForLabel)}`
+      : formatDateLabel(currentDate);
+  const surfaceImageUrl = frames[safeIdx];
   const surfaceImageNextUrl = frames[nextIdx];
-  const deepImageUrl = deepFrames[idx];
-  const deepImageNextUrl = deepFrames[nextIdx];
-  const windImageUrl = windFrames[idx];
-  const windImageNextUrl = windFrames[nextIdx];
+  const deepImageUrl = deepFrames[safeIdx] ?? deepFrames[0];
+  const deepImageNextUrl = deepFrames[nextIdx] ?? deepFrames[0];
+  const windImageUrl = windFrames[safeIdx] ?? null;
+  const windImageNextUrl = windFrames[nextIdx] ?? null;
 
   const overlayFrames = useMemo(() => {
     const base =
       import.meta.env.BASE_URL +
-      (sourceMode === "observation" && overlaySupportsObservation
-        ? "observation/"
+      (overlayUsesAltRasterSource
+        ? sourceMode === "observation"
+          ? "observation/"
+          : "swot/"
         : "");
     if (overlay === "topo") {
-      return DATES.map(() => `${import.meta.env.BASE_URL}topography.png`);
+      return dates.map(() => `${import.meta.env.BASE_URL}topography.png`);
     }
-	    const prefix =
-	      overlay === "ice"
-	        ? "SI"
-	        : overlay === "wind"
-	          ? "windmag"
-	          : overlay === "wind10"
-	            ? "windmag"
-	          : overlay === "deep"
-	            ? "magdeep"
-	            : overlay === "vort"
-	              ? "Ro"
-	              : overlay;
-    return DATES.map((d) => `${base}${prefix}_${d}.png`);
-  }, [overlay, overlaySupportsObservation, sourceMode]);
+    if (sourceMode === "swot" && overlay === "mag") {
+      const magDates =
+        swotIndex?.mag_dates?.length ? swotIndex.mag_dates : SWOT_DATES;
+      const magMs = magDates.map((d) => Date.parse(`${d}T00:00:00Z`));
+      const toMagDate = (uvDate: string) => {
+        const t = Date.parse(`${uvDate}T00:00:00Z`);
+        let bestIdx = 0;
+        let best = Infinity;
+        for (let i = 0; i < magMs.length; i++) {
+          const dist = Math.abs(magMs[i] - t);
+          if (dist < best) {
+            best = dist;
+            bestIdx = i;
+          }
+        }
+        return magDates[bestIdx] ?? uvDate;
+      };
+      return dates.map((d) => `${base}swot_mag_${toMagDate(d)}.png`);
+    }
 
-  const magUrl = overlayFrames[idx];
+    const prefix =
+      overlay === "ice"
+        ? "SI"
+        : overlay === "wind"
+          ? "windmag"
+          : overlay === "wind10"
+            ? "windmag"
+            : overlay === "deep"
+              ? "magdeep"
+              : overlay === "vort"
+                ? "Ro"
+                : overlay;
+    return dates.map((d) => `${base}${prefix}_${d}.png`);
+  }, [dates, overlay, overlayUsesAltRasterSource, sourceMode, swotIndex]);
+
+  const magUrl = overlayFrames[safeIdx];
   const magNextUrl = overlayFrames[nextIdx];
   const magOpacity = 0.45;
 
@@ -441,6 +540,10 @@ export default function App() {
   }, [OPEN_BUTTON_INSET.dx, OPEN_BUTTON_INSET.dy, openButtonAnchorPx.x, openButtonAnchorPx.y, openButtonOffset.dx, openButtonOffset.dy]);
 
   const isNarrowUi = viewportSize.width < 520;
+  const rasterImageCoordinateSystem =
+    sourceMode === "observation" && overlaySupportsObservation
+      ? COORDINATE_SYSTEM.LNGLAT
+      : COORDINATE_SYSTEM.DEFAULT;
 
   const layers = [
     new BitmapLayer({
@@ -448,20 +551,14 @@ export default function App() {
       image: magUrl,
       bounds: BOUNDS,
       opacity: magOpacity * (1 - blend),
-      _imageCoordinateSystem:
-        sourceMode === "observation" && overlaySupportsObservation
-          ? COORDINATE_SYSTEM.LNGLAT
-          : COORDINATE_SYSTEM.DEFAULT,
+      _imageCoordinateSystem: rasterImageCoordinateSystem,
     }),
     new BitmapLayer({
       id: "magnitude-raster-next",
       image: magNextUrl,
       bounds: BOUNDS,
       opacity: magOpacity * blend,
-      _imageCoordinateSystem:
-        sourceMode === "observation" && overlaySupportsObservation
-          ? COORDINATE_SYSTEM.LNGLAT
-          : COORDINATE_SYSTEM.DEFAULT,
+      _imageCoordinateSystem: rasterImageCoordinateSystem,
     }),
     ...(surfaceFlowToggleEnabled && showParticles
       ? [
@@ -860,10 +957,64 @@ export default function App() {
 	                fontWeight: sourceMode === "observation" ? 700 : 500,
 	              }}
 	            >
-	              Observation
-	            </button>
-	          </div>
-	        </div>
+		              Observation
+		            </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSourceMode("swot");
+                    setOverlay("mag");
+                    setIdx(0);
+                    setBlend(0);
+                    setPlaying(false);
+                    setMovieOn(false);
+                    setShowWindFlow(false);
+                  }}
+                  onMouseEnter={(e) => {
+                    const rect = (
+                      e.currentTarget as HTMLElement
+                    ).getBoundingClientRect();
+                    setTooltip({
+                      text:
+                        "2km resolution SWOT altimeter surface geostrophic currents (2023-12-14 to 2025-09-19), NOT gridded but added up swathes every cycle (21 days) to fill spatial gaps, stay cautious in interpretation",
+                      left: rect.left + rect.width / 2,
+                      top: rect.top - 8,
+                    });
+                  }}
+                  onMouseLeave={() => setTooltip(null)}
+                  onFocus={(e) => {
+                    const rect = (
+                      e.currentTarget as HTMLElement
+                    ).getBoundingClientRect();
+                    setTooltip({
+                      text:
+                        "SWOT altimeter gridded surface currents (2023-12-14 to 2025-09-19)",
+                      left: rect.left + rect.width / 2,
+                      top: rect.top - 8,
+                    });
+                  }}
+                  onBlur={() => setTooltip(null)}
+                  style={{
+                    padding: "2px 8px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(255,255,255,0.25)",
+                    background:
+                      sourceMode === "swot"
+                        ? "rgba(255,255,255,0.16)"
+                        : "transparent",
+                    color:
+                      sourceMode === "swot"
+                        ? "white"
+                        : "rgba(255,255,255,0.75)",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: sourceMode === "swot" ? 700 : 500,
+                  }}
+                >
+                  SWOT
+                </button>
+		          </div>
+		        </div>
 
 		        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
 		          <div style={{ fontSize: 12, opacity: 0.9 }}>Data:</div>
@@ -1060,10 +1211,10 @@ export default function App() {
 	          <div style={{ fontSize: 12, opacity: 0.9 }}>Audio</div>
 	        </div>
 
-	        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-	          <div style={{ fontSize: 12, opacity: 0.9 }}>
-	            Date: {formatDateLabel(currentDate)}
-	          </div>
+		        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+		          <div style={{ fontSize: 12, opacity: 0.9 }}>
+		            Date: {dateLabel}
+		          </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <button
               onClick={() =>
