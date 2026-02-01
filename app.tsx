@@ -957,7 +957,7 @@ export default function App() {
 	                fontWeight: sourceMode === "observation" ? 700 : 500,
 	              }}
 	            >
-		              Observation
+		              Gridded products
 		            </button>
                 <button
                   type="button"
@@ -988,8 +988,7 @@ export default function App() {
                     ).getBoundingClientRect();
                     setTooltip({
                       text:
-                        "SWOT altimeter gridded surface currents (2023-12-14 to 2025-09-19)",
-                      left: rect.left + rect.width / 2,
+                        "2km resolution SWOT altimeter surface geostrophic currents (2023-12-14 to 2025-09-19), NOT gridded but added up swathes every cycle (21 days) to fill spatial gaps, stay cautious in interpretation",                      left: rect.left + rect.width / 2,
                       top: rect.top - 8,
                     });
                   }}
