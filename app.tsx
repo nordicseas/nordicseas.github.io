@@ -10,8 +10,8 @@ import {
 import { BitmapLayer, TextLayer } from "@deck.gl/layers";
 import ParticleLayer from "./particle-layer";
 
-const MAP_STYLE =
-  `${import.meta.env.BASE_URL}styles/openfreemap-dark-en.json`;
+const MAP_STYLE_NIGHT = `${import.meta.env.BASE_URL}styles/openfreemap-dark-en.json`;
+const MAP_STYLE_DAY = `${import.meta.env.BASE_URL}styles/openfreemap-positron-en.json`;
 
 // lon/lat bounds for your uv_*.png
 const BOUNDS: [number, number, number, number] = [-30, 57.67, 23.28, 81.5];
@@ -71,6 +71,7 @@ export default function App() {
   const panelRef = useRef<HTMLDivElement | null>(null);
 
   const [panelOpen, setPanelOpen] = useState(false);
+  const [mapTheme, setMapTheme] = useState<"night" | "day">("night");
   const [sourceMode, setSourceMode] = useState<
     "simulation" | "observation" | "swot"
   >(
@@ -668,16 +669,19 @@ export default function App() {
 	        loop
 	      />
 
-      <DeckGL
-        ref={ref}
-        layers={layers}
-        viewState={viewState}
-        onViewStateChange={({ viewState: next }) =>
-          setViewState(next as MapViewState)
-        }
-        controller={true}
+	      <DeckGL
+	        ref={ref}
+	        layers={layers}
+	        viewState={viewState}
+	        onViewStateChange={({ viewState: next }) =>
+	          setViewState(next as MapViewState)
+	        }
+	        controller={true}
 	      >
-	        <Map reuseMaps mapStyle={MAP_STYLE} />
+	        <Map
+	          reuseMaps
+	          mapStyle={mapTheme === "night" ? MAP_STYLE_NIGHT : MAP_STYLE_DAY}
+	        />
 	      </DeckGL>
 
 	        {!panelOpen && (
@@ -836,6 +840,28 @@ export default function App() {
 		        >
 		          <div style={{ fontSize: 12, opacity: 0.7 }}>Control Panel</div>
 		          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMapTheme((t) => (t === "night" ? "day" : "night"))
+                  }
+                  title={mapTheme === "night" ? "Day map" : "Night map"}
+                  style={{
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    background: "rgba(255,255,255,0.06)",
+                    color: "rgba(255,255,255,0.9)",
+                    cursor: "pointer",
+                    width: 26,
+                    height: 26,
+                    borderRadius: 8,
+                    display: "grid",
+                    placeItems: "center",
+                    padding: 0,
+                    lineHeight: 1,
+                  }}
+                >
+                  {mapTheme === "night" ? "☀︎" : "☾"}
+                </button>
 		            <button
 		              type="button"
 		              onClick={() => {
