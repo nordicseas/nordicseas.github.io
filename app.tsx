@@ -70,7 +70,7 @@ export default function App() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
 
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
   const [mapTheme, setMapTheme] = useState<"night" | "day">("night");
   const [sourceMode, setSourceMode] = useState<
     "simulation" | "observation" | "swot"
@@ -1341,9 +1341,60 @@ export default function App() {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ fontSize: 12, opacity: 0.75 }}>Feedback:</div>
           <a
+            href="https://bve23zsu.github.io/"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Webpage"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              color: "white",
+              textDecoration: "none",
+              fontSize: 12,
+              opacity: 0.8,
+            }}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm6.93 9h-3.16a15.7 15.7 0 00-1.38-5.03A8.03 8.03 0 0118.93 11zM12 4.04c.86 1.16 1.78 3.27 2.15 6.96H9.85C10.22 7.31 11.14 5.2 12 4.04zM4.07 13h3.16c.14 1.86.6 3.62 1.38 5.03A8.03 8.03 0 014.07 13zm3.16-2H4.07a8.03 8.03 0 014.54-5.03A15.7 15.7 0 007.23 11zM12 19.96c-.86-1.16-1.78-3.27-2.15-6.96h4.31c-.37 3.69-1.29 5.8-2.16 6.96zM14.77 13h3.16a8.03 8.03 0 01-4.54 5.03c.78-1.41 1.24-3.17 1.38-5.03z" />
+            </svg>
+          </a>
+          <a
+            href="https://github.com/nordicseas/nordicseas.github.io"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="GitHub"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              color: "white",
+              textDecoration: "none",
+              fontSize: 12,
+              opacity: 0.8,
+            }}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M12 2a10 10 0 00-3.16 19.49c.5.09.68-.21.68-.48v-1.68c-2.78.6-3.37-1.18-3.37-1.18-.46-1.15-1.11-1.46-1.11-1.46-.91-.61.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.36 1.09 2.94.83.09-.64.35-1.09.64-1.34-2.22-.25-4.56-1.11-4.56-4.95 0-1.09.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.03A9.6 9.6 0 0112 6.84c.85 0 1.71.11 2.51.33 1.91-1.3 2.75-1.03 2.75-1.03.55 1.37.2 2.39.1 2.64.64.7 1.03 1.6 1.03 2.69 0 3.85-2.34 4.7-4.57 4.95.36.31.68.92.68 1.86v2.76c0 .27.18.57.69.47A10 10 0 0012 2z" />
+            </svg>
+          </a>
+          <a
             href="https://www.linkedin.com/in/dong-jian/"
             target="_blank"
             rel="noreferrer"
+            aria-label="LinkedIn"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -1363,7 +1414,6 @@ export default function App() {
             >
               <path d="M4.98 3.5C3.34 3.5 2 4.84 2 6.48c0 1.63 1.33 2.98 2.97 2.98h.02c1.64 0 2.98-1.35 2.98-2.98C7.97 4.84 6.64 3.5 4.98 3.5zM2.4 21h5.17V9.75H2.4V21zM9.74 9.75V21h5.17v-6.27c0-3.35 4.36-3.62 4.36 0V21h5.17v-7.99c0-6.22-7.1-6-9.53-2.94V9.75H9.74z" />
             </svg>
-            LinkedIn
           </a>
           <span
             style={{
