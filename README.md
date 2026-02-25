@@ -6,7 +6,7 @@ Interactive Nordic Seas visualization with raster layers and animated particle f
 
 ### Model (MITgcm simulation)
 
-5-day snapshots for 2010-2011 are included in this GitHub Pages demo. The full archive is not hosted here because of GitHub storage/quota limits.
+5-day snapshots for 2010-2011 are included in this GitHub Pages demo. The full archive is not hosted here because of GitHub storage/quota limits (and couldn't afford to cloud service...).
 
 - MITgcm-based high-resolution ocean-ice coupled simulation (Nordic Seas).
 - Topography / bathymetry: RTopo-2.0.4 (Schaffer et al., 2019)
@@ -32,9 +32,12 @@ Interactive Nordic Seas visualization with raster layers and animated particle f
 - Note: swaths from each ~21-day cycle are overlaid to improve spatial coverage, so each frame is not an instantaneous snapshot.
 
 ## References
-
-- Jian, D., Zhai, X., Stevens, D. P., & Renfrew, I. A. (2026). *Oceanic heat transport along the Norwegian Atlantic Slope Current and the role of eddies*. *Journal of Geophysical Research: Oceans*, **131**(1), e2025JC022960. (MITgcm model simulation context)
+D. Jian, X. Zhai, D. P. Stevens, I. Renfrew (2026).  
+**Oceanic Heat Transport Along the Norwegian Atlantic Slope Current and the Role of Eddies.**  
+*Journal of Geophysical Research: Oceans*.  
+[https://doi.org/10.1029/2025JC022960](https://doi.org/10.1029/2025JC022960)
 
 ## Related Webpage
 
-- https://greenlandsea.github.io/
+- A Greenland Sea demo in 3D: https://greenlandsea.github.io/
+- Personal webpage: https://bve23zsu.github.io/
