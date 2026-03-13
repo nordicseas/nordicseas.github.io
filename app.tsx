@@ -1390,28 +1390,22 @@ export default function App() {
               <path d="M12 2a10 10 0 00-3.16 19.49c.5.09.68-.21.68-.48v-1.68c-2.78.6-3.37-1.18-3.37-1.18-.46-1.15-1.11-1.46-1.11-1.46-.91-.61.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.36 1.09 2.94.83.09-.64.35-1.09.64-1.34-2.22-.25-4.56-1.11-4.56-4.95 0-1.09.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.03A9.6 9.6 0 0112 6.84c.85 0 1.71.11 2.51.33 1.91-1.3 2.75-1.03 2.75-1.03.55 1.37.2 2.39.1 2.64.64.7 1.03 1.6 1.03 2.69 0 3.85-2.34 4.7-4.57 4.95.36.31.68.92.68 1.86v2.76c0 .27.18.57.69.47A10 10 0 0012 2z" />
             </svg>
           </a>
-        </div>
-        <div
-          style={{
-            marginTop: 6,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 12,
-            opacity: 0.8,
-          }}
-        >
-          <div style={{ opacity: 0.75 }}>Twin website:</div>
           <a
-            href="https://nordicseas.github.io/"
+            href="https://nordicseas3d.github.io/"
             target="_blank"
             rel="noreferrer"
+            aria-label="Twin site"
             style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
               color: "white",
               textDecoration: "underline",
+              fontSize: 12,
+              opacity: 0.8,
             }}
           >
-            nordicseas.github.io
+            Twin site
           </a>
         </div>
       </div>
