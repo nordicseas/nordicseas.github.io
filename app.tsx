@@ -1391,6 +1391,29 @@ export default function App() {
             </svg>
           </a>
         </div>
+        <div
+          style={{
+            marginTop: 6,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 12,
+            opacity: 0.8,
+          }}
+        >
+          <div style={{ opacity: 0.75 }}>Twin website:</div>
+          <a
+            href="https://nordicseas.github.io/"
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              color: "white",
+              textDecoration: "underline",
+            }}
+          >
+            nordicseas.github.io
+          </a>
+        </div>
       </div>
       )}
     </div>
