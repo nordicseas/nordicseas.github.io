@@ -69,6 +69,7 @@ export default function App() {
   const ref = useRef<DeckGLRef>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const mainRef = useRef<HTMLDivElement | null>(null);
 
   const [panelOpen, setPanelOpen] = useState(true);
   const [mapTheme, setMapTheme] = useState<"night" | "day">("night");
@@ -88,6 +89,7 @@ export default function App() {
   const [showWindFlow, setShowWindFlow] = useState(false);
   const [movieOn, setMovieOn] = useState(false);
   const [audioOn, setAudioOn] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const idxRef = useRef(idx);
   const [viewportSize, setViewportSize] = useState({
@@ -219,6 +221,49 @@ export default function App() {
   useEffect(() => {
     idxRef.current = idx;
   }, [idx]);
+
+  useEffect(() => {
+    const updateFullscreenState = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    updateFullscreenState();
+    document.addEventListener("fullscreenchange", updateFullscreenState);
+    return () => {
+      document.removeEventListener("fullscreenchange", updateFullscreenState);
+    };
+  }, []);
+
+  const toggleFullscreen = async () => {
+    const root = mainRef.current as
+      | (HTMLDivElement & {
+          webkitRequestFullscreen?: () => Promise<void> | void;
+        })
+      | null;
+    const doc = document as Document & {
+      webkitFullscreenElement?: Element | null;
+      webkitExitFullscreen?: () => Promise<void> | void;
+    };
+    const inFullscreen = Boolean(document.fullscreenElement ?? doc.webkitFullscreenElement);
+
+    try {
+      if (inFullscreen) {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else {
+          await doc.webkitExitFullscreen?.();
+        }
+      } else if (root) {
+        if (root.requestFullscreen) {
+          await root.requestFullscreen();
+        } else {
+          await root.webkitRequestFullscreen?.();
+        }
+      }
+    } catch {
+      // ignore fullscreen failures on unsupported browsers
+    }
+  };
 
   useEffect(() => {
     const onResize = () => {
@@ -637,7 +682,7 @@ export default function App() {
   ];
 
 		  return (
-		    <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
+    <div ref={mainRef} style={{ position: "relative", width: "100vw", height: "100vh" }}>
 		      {tooltip && (
 		        <div
 		          style={{
@@ -881,6 +926,27 @@ export default function App() {
 		            >
 		              ×
 		            </button>
+                <button
+                  type="button"
+                  onClick={toggleFullscreen}
+                  title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                  aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                  style={{
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    background: "rgba(255,255,255,0.06)",
+                    color: "rgba(255,255,255,0.9)",
+                    cursor: "pointer",
+                    width: 26,
+                    height: 26,
+                    borderRadius: 8,
+                    display: "grid",
+                    placeItems: "center",
+                    padding: 0,
+                    lineHeight: 1,
+                  }}
+                >
+                  {isFullscreen ? "⤡" : "⤢"}
+                </button>
 		            <div style={{ fontSize: 12, opacity: 0.4 }}>⋮⋮</div>
 		          </div>
 		        </div>
