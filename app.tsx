@@ -159,12 +159,13 @@ export default function App() {
 
   const overlaySupportsObservation =
     overlay === "mag" ||
+    overlay === "vort" ||
     overlay === "sst" ||
     overlay === "sss" ||
     overlay === "ice" ||
     overlay === "wind10";
 
-  const overlaySupportsSwot = overlay === "mag";
+  const overlaySupportsSwot = overlay === "mag" || overlay === "vort";
   const overlayUsesAltRasterSource =
     (sourceMode === "observation" && overlaySupportsObservation) ||
     (sourceMode === "swot" && overlaySupportsSwot);
@@ -187,6 +188,7 @@ export default function App() {
         (o) =>
           o.id === "topo" ||
           o.id === "mag" ||
+          o.id === "vort" ||
           o.id === "sst" ||
           o.id === "sss" ||
           o.id === "ice" ||
@@ -194,7 +196,9 @@ export default function App() {
       );
     }
     if (sourceMode === "swot") {
-      return all.filter((o) => o.id === "topo" || o.id === "mag");
+      return all.filter(
+        (o) => o.id === "topo" || o.id === "mag" || o.id === "vort"
+      );
     }
     return all.filter((o) => o.id !== "wind10");
   }, [sourceMode]);
@@ -297,7 +301,12 @@ export default function App() {
 
   useEffect(() => {
     setShowParticles(
-      !(overlay === "deep" || overlay === "wind" || overlay === "wind10")
+      !(
+        overlay === "deep" ||
+        overlay === "vort" ||
+        overlay === "wind" ||
+        overlay === "wind10"
+      )
     );
   }, [overlay]);
 
@@ -361,7 +370,7 @@ export default function App() {
   useEffect(() => {
     if (sourceMode === "swot") {
       setShowWindFlow(false);
-      if (overlay !== "topo" && overlay !== "mag") {
+      if (overlay !== "topo" && overlay !== "mag" && overlay !== "vort") {
         setOverlay("mag");
       }
     }
@@ -418,6 +427,11 @@ export default function App() {
       };
       return dates.map((d) => `${base}swot_mag_${toMagDate(d)}.png`);
     }
+    if (sourceMode === "swot" && overlay === "vort") {
+      return dates.map(
+        (d) => `${import.meta.env.BASE_URL}observation/swot_Ro_${d}.png`
+      );
+    }
 
     const prefix =
       overlay === "ice"
@@ -429,7 +443,9 @@ export default function App() {
             : overlay === "deep"
               ? "magdeep"
               : overlay === "vort"
-                ? "Ro"
+                ? sourceMode === "observation"
+                  ? "Altemeter_Ro"
+                  : "Ro"
                 : overlay;
     return dates.map((d) => `${base}${prefix}_${d}.png`);
   }, [dates, overlay, overlayUsesAltRasterSource, sourceMode, swotIndex]);
@@ -1004,6 +1020,7 @@ export default function App() {
 		                if (
 		                  overlay !== "topo" &&
 		                  overlay !== "mag" &&
+		                  overlay !== "vort" &&
 		                  overlay !== "sst" &&
 		                  overlay !== "sss" &&
 		                  overlay !== "ice" &&
@@ -1055,7 +1072,13 @@ export default function App() {
                   type="button"
                   onClick={() => {
                     setSourceMode("swot");
-                    setOverlay("mag");
+                    if (
+                      overlay !== "topo" &&
+                      overlay !== "mag" &&
+                      overlay !== "vort"
+                    ) {
+                      setOverlay("mag");
+                    }
                     setIdx(0);
                     setBlend(0);
                     setPlaying(false);
