@@ -45,6 +45,7 @@ function generateIsoDates(startIso: string, endIso: string, stepDays: number) {
 // Must match filenames in `public/` (e.g. `uv_YYYY-MM-DD.png`).
 const MODEL_DATES = generateIsoDates("2010-01-04", "2011-12-30", 5);
 const SWOT_DATES = generateIsoDates("2023-12-14", "2025-09-19", 21);
+const INTRO_MODAL_STORAGE_KEY = "nordic-seas-intro-seen";
 
 function formatDateLabel(isoDate: string) {
   const [y, m, d] = isoDate.split("-").map(Number);
@@ -90,6 +91,7 @@ export default function App() {
   const [movieOn, setMovieOn] = useState(false);
   const [audioOn, setAudioOn] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showIntroModal, setShowIntroModal] = useState(false);
 
   const idxRef = useRef(idx);
   const [viewportSize, setViewportSize] = useState({
@@ -237,6 +239,33 @@ export default function App() {
       document.removeEventListener("fullscreenchange", updateFullscreenState);
     };
   }, []);
+
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(INTRO_MODAL_STORAGE_KEY) !== "1") {
+        setShowIntroModal(true);
+      }
+    } catch {
+      setShowIntroModal(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!showIntroModal) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      try {
+        window.localStorage.setItem(INTRO_MODAL_STORAGE_KEY, "1");
+      } catch {
+        // ignore storage failures
+      }
+      setShowIntroModal(false);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showIntroModal]);
 
   const toggleFullscreen = async () => {
     const root = mainRef.current as
@@ -602,6 +631,64 @@ export default function App() {
   }, [OPEN_BUTTON_INSET.dx, OPEN_BUTTON_INSET.dy, openButtonAnchorPx.x, openButtonAnchorPx.y, openButtonOffset.dx, openButtonOffset.dy]);
 
   const isNarrowUi = viewportSize.width < 520;
+  const introCardLayout = (() => {
+    if (isNarrowUi) {
+      return {
+        left: 18,
+        right: 18,
+        top: 72,
+        bottom: 72,
+        width: "auto" as const,
+        maxHeight: "calc(100vh - 144px)",
+      };
+    }
+
+    const fallbackPanelTop = viewportSize.height - 220;
+    const anchorLeft = panelPos?.left ?? 12;
+    const anchorTop = panelPos?.top ?? fallbackPanelTop;
+    const availableHeight = Math.max(240, Math.min(640, anchorTop - 24));
+
+    return {
+      left: clamp(anchorLeft, 18, Math.max(18, viewportSize.width - 458)),
+      bottom: Math.max(18, viewportSize.height - anchorTop + 12),
+      width: Math.min(440, viewportSize.width - 36),
+      maxHeight: availableHeight,
+    };
+  })();
+  const introTheme =
+    mapTheme === "day"
+      ? {
+          panel: "rgba(228, 237, 249, 0.88)",
+          border: "rgba(23, 40, 66, 0.28)",
+          text: "rgba(18, 31, 50, 0.96)",
+          muted: "rgba(25, 43, 68, 0.78)",
+          backdrop: "rgba(15, 23, 42, 0.26)",
+          button: "rgba(255,255,255,0.68)",
+          primaryBorder: "rgba(37,99,235,0.32)",
+          primaryBg:
+            "linear-gradient(180deg, rgba(96, 165, 250, 0.16), rgba(167, 139, 250, 0.10))",
+          shadow: "0 14px 40px rgba(19, 32, 58, 0.22)",
+        }
+      : {
+          panel: "rgba(10, 14, 24, 0.72)",
+          border: "rgba(255, 255, 255, 0.10)",
+          text: "rgba(255, 255, 255, 0.92)",
+          muted: "rgba(255, 255, 255, 0.68)",
+          backdrop: "rgba(4, 8, 16, 0.62)",
+          button: "rgba(255,255,255,0.06)",
+          primaryBorder: "rgba(103,232,249,0.40)",
+          primaryBg:
+            "linear-gradient(180deg, rgba(103,232,249,0.14), rgba(167,139,250,0.08))",
+          shadow: "0 14px 40px rgba(0,0,0,0.45)",
+        };
+  const closeIntroModal = () => {
+    try {
+      window.localStorage.setItem(INTRO_MODAL_STORAGE_KEY, "1");
+    } catch {
+      // ignore storage failures
+    }
+    setShowIntroModal(false);
+  };
   const rasterImageCoordinateSystem =
     sourceMode === "observation" && overlaySupportsObservation
       ? COORDINATE_SYSTEM.LNGLAT
@@ -699,6 +786,187 @@ export default function App() {
 
 		  return (
     <div ref={mainRef} style={{ position: "relative", width: "100vw", height: "100vh" }}>
+          {showIntroModal && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="intro-modal-title"
+              onClick={closeIntroModal}
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 1200,
+                background: introTheme.backdrop,
+              }}
+            >
+              <div
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  background: "transparent",
+                }}
+              />
+              <div
+                onClick={(event) => event.stopPropagation()}
+                style={{
+                  position: "fixed",
+                  left: introCardLayout.left,
+                  right: introCardLayout.right,
+                  top: introCardLayout.top,
+                  bottom: introCardLayout.bottom,
+                  width: introCardLayout.width,
+                  maxHeight: introCardLayout.maxHeight,
+                  overflowY: "auto",
+                  borderRadius: 16,
+                  border: `1px solid ${introTheme.border}`,
+                  background: introTheme.panel,
+                  color: introTheme.text,
+                  boxShadow: introTheme.shadow,
+                  backdropFilter: "blur(10px)",
+                  padding: isNarrowUi ? 16 : 18,
+                  fontFamily: "system-ui, sans-serif",
+                  display: "grid",
+                  gap: 14,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: 16,
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 800,
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        color: introTheme.muted,
+                      }}
+                    >
+                      First visit
+                    </div>
+                    <h2
+                      id="intro-modal-title"
+                      style={{
+                        margin: "4px 0 0",
+                        fontSize: 22,
+                        lineHeight: 1.1,
+                        color: introTheme.text,
+                      }}
+                    >
+                      Nordic Seas viewer
+                    </h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeIntroModal}
+                    aria-label="Close introduction"
+                    style={{
+                      border: `1px solid ${introTheme.border}`,
+                      background: introTheme.button,
+                      color: introTheme.text,
+                      width: 30,
+                      height: 30,
+                      borderRadius: 10,
+                      cursor: "pointer",
+                      flexShrink: 0,
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    fontSize: 14,
+                    lineHeight: 1.5,
+                    color: introTheme.text,
+                  }}
+                >
+                  This viewer shows the Nordic Seas with animated current particles and raster
+                  layers from an MITgcm simulation, gridded observational products, and SWOT
+                  altimeter surface currents.
+                </div>
+
+                <ul
+                  style={{
+                    display: "grid",
+                    gap: 8,
+                    margin: 0,
+                    padding: "0 0 0 18px",
+                    fontSize: 13,
+                    lineHeight: 1.45,
+                    color: introTheme.muted,
+                  }}
+                >
+                  <li>Use Source to switch between Model, Gridded products, and SWOT.</li>
+                  <li>Use Data to change variables such as currents, SST, salinity, ice, or wind.</li>
+                  <li>Use Movie, the date slider, and the arrow buttons to move through time.</li>
+                  <li>Use the `?` button in the panel header to reopen this guide later.</li>
+                </ul>
+
+                <div
+                  style={{
+                    fontSize: 12,
+                    lineHeight: 1.45,
+                    color: introTheme.muted,
+                  }}
+                >
+                  SWOT frames combine swaths over about 21 days, so they are not instantaneous
+                  snapshots.
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={closeIntroModal}
+                    style={{
+                      cursor: "pointer",
+                      padding: "9px 12px",
+                      borderRadius: 10,
+                      border: `1px solid ${introTheme.border}`,
+                      background: introTheme.button,
+                      color: introTheme.text,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      lineHeight: 1,
+                    }}
+                  >
+                    Close
+                  </button>
+                  <div style={{ flex: 1 }} />
+                  <button
+                    type="button"
+                    onClick={closeIntroModal}
+                    style={{
+                      cursor: "pointer",
+                      padding: "9px 12px",
+                      borderRadius: 10,
+                      border: `1px solid ${introTheme.primaryBorder}`,
+                      background: introTheme.primaryBg,
+                      color: introTheme.text,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      lineHeight: 1,
+                    }}
+                  >
+                    Open viewer
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 		      {tooltip && (
 		        <div
 		          style={{
@@ -901,6 +1169,28 @@ export default function App() {
 		        >
 		          <div style={{ fontSize: 12, opacity: 0.7 }}>Control Panel</div>
 		          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowIntroModal(true)}
+                  title="About this site"
+                  aria-label="About this site"
+                  style={{
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    background: "rgba(255,255,255,0.06)",
+                    color: "rgba(255,255,255,0.9)",
+                    cursor: "pointer",
+                    width: 26,
+                    height: 26,
+                    borderRadius: 8,
+                    display: "grid",
+                    placeItems: "center",
+                    padding: 0,
+                    lineHeight: 1,
+                    fontWeight: 700,
+                  }}
+                >
+                  ?
+                </button>
                 <button
                   type="button"
                   onClick={() =>
